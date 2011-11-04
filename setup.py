@@ -3,12 +3,17 @@
 import os
 from setuptools import setup, find_packages
 
+def read(*rnames):
+    text = open(os.path.join(os.path.dirname(__file__), *rnames)).read()
+    return unicode(text, 'utf-8').encode('ascii', 'xmlcharrefreplace')
+
 setup (
     name='mongopersist',
-    version='0.5.0dev',
+    version='0.5.0',
     author = "Stephan Richter",
     author_email = "stephan.richter@gmail.com",
     description = "Mongo Persistence Backend",
+    long_description=read('src', 'mongopersist', 'README.txt'),
     license = "ZPL 2.1",
     keywords = "mongo persistent ",
     classifiers = [
