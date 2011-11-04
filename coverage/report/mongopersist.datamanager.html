@@ -1,0 +1,199 @@
+
+    <html>
+      <head><title>Test coverage for mongopersist.datamanager</title>
+      <style type="text/css">
+        a {text-decoration: none; display: block; padding-right: 1em;}
+        a:hover {background: #EFA;}
+        hr {height: 1px; border: none; border-top: 1px solid gray;}
+        .notcovered {background: #FCC;}
+        .footer {margin: 2em; font-size: small; color: gray;}
+      </style>
+      </head>
+      <body><h1>Test coverage for mongopersist.datamanager</h1>
+      <table>
+    
+<tr><td><a href="mongopersist.html">mongopersist/</a></td> <td style="background: yellow">&nbsp;&nbsp;&nbsp;&nbsp;</td> <td>covered 99% (1 of 695 uncovered)</td></tr>
+<tr><td><a href="mongopersist.datamanager.html">&nbsp;&nbsp;&nbsp;&nbsp;datamanager.py</a></td> <td style="background: green">&nbsp;&nbsp;&nbsp;&nbsp;</td> <td>covered 100% (0 of 124 uncovered)</td></tr>
+</table><hr/>
+<pre>
+       <I><FONT COLOR="#B22222">##############################################################################
+</FONT></I>       <I><FONT COLOR="#B22222">#
+</FONT></I>       <I><FONT COLOR="#B22222"># Copyright (c) 2011 Zope Foundation and Contributors.
+</FONT></I>       <I><FONT COLOR="#B22222"># All Rights Reserved.
+</FONT></I>       <I><FONT COLOR="#B22222">#
+</FONT></I>       <I><FONT COLOR="#B22222"># This software is subject to the provisions of the Zope Public License,
+</FONT></I>       <I><FONT COLOR="#B22222"># Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+</FONT></I>       <I><FONT COLOR="#B22222"># THIS SOFTWARE IS PROVIDED &quot;AS IS&quot; AND ANY AND ALL EXPRESS OR IMPLIED
+</FONT></I>       <I><FONT COLOR="#B22222"># WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+</FONT></I>       <I><FONT COLOR="#B22222"># WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+</FONT></I>       <I><FONT COLOR="#B22222"># FOR A PARTICULAR PURPOSE.
+</FONT></I>       <I><FONT COLOR="#B22222">#
+</FONT></I>       <I><FONT COLOR="#B22222">##############################################################################
+</FONT></I>    1: <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Mongo Persistent Data Manager&quot;&quot;&quot;</FONT></B>
+    1: <B><FONT COLOR="#A020F0">from</FONT></B> __future__ <B><FONT COLOR="#A020F0">import</FONT></B> absolute_import
+    1: <B><FONT COLOR="#A020F0">import</FONT></B> UserDict
+    1: <B><FONT COLOR="#A020F0">import</FONT></B> persistent
+    1: <B><FONT COLOR="#A020F0">import</FONT></B> pymongo
+    1: <B><FONT COLOR="#A020F0">import</FONT></B> pymongo.dbref
+    1: <B><FONT COLOR="#A020F0">import</FONT></B> transaction
+    1: <B><FONT COLOR="#A020F0">import</FONT></B> zope.interface
+       
+    1: <B><FONT COLOR="#A020F0">from</FONT></B> mongopersist <B><FONT COLOR="#A020F0">import</FONT></B> interfaces, serialize
+       
+    1: <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">create_conflict_error</FONT></B>(obj, new_doc):
+    3:     <B><FONT COLOR="#A020F0">return</FONT></B> interfaces.ConflictError(
+    3:         None, obj,
+    3:         (new_doc.get(<B><FONT COLOR="#BC8F8F">'_py_serial'</FONT></B>, 0), serialize.u64(obj._p_serial)))
+       
+       
+    2: <B><FONT COLOR="#A020F0">class</FONT></B> Root(UserDict.DictMixin):
+       
+    1:     database=<B><FONT COLOR="#BC8F8F">'mongopersist'</FONT></B>
+    1:     collection = <B><FONT COLOR="#BC8F8F">'persistence_root'</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">__init__</FONT></B>(self, jar, database=None, collection=None):
+  123:         self._jar = jar
+  123:         <B><FONT COLOR="#A020F0">if</FONT></B> database <B><FONT COLOR="#A020F0">is</FONT></B> <B><FONT COLOR="#A020F0">not</FONT></B> None:
+   58:             self.database = database
+  123:         <B><FONT COLOR="#A020F0">if</FONT></B> collection <B><FONT COLOR="#A020F0">is</FONT></B> <B><FONT COLOR="#A020F0">not</FONT></B> None:
+    2:             self.collection = collection
+  123:         db = self._jar._conn[self.database]
+  123:         self._collection_inst = db[self.collection]
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">__getitem__</FONT></B>(self, key):
+  119:         doc = self._collection_inst.find_one({<B><FONT COLOR="#BC8F8F">'name'</FONT></B>: key})
+  119:         <B><FONT COLOR="#A020F0">if</FONT></B> doc <B><FONT COLOR="#A020F0">is</FONT></B> None:
+   14:             <B><FONT COLOR="#A020F0">raise</FONT></B> KeyError(key)
+  105:         <B><FONT COLOR="#A020F0">return</FONT></B> self._jar.load(doc[<B><FONT COLOR="#BC8F8F">'ref'</FONT></B>])
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">__setitem__</FONT></B>(self, key, value):
+   16:         dbref = self._jar.dump(value)
+   15:         <B><FONT COLOR="#A020F0">if</FONT></B> self.get(key) <B><FONT COLOR="#A020F0">is</FONT></B> <B><FONT COLOR="#A020F0">not</FONT></B> None:
+    1:             <B><FONT COLOR="#A020F0">del</FONT></B> self[key]
+   15:         doc = {<B><FONT COLOR="#BC8F8F">'ref'</FONT></B>: dbref, <B><FONT COLOR="#BC8F8F">'name'</FONT></B>: key}
+   15:         self._collection_inst.insert(doc)
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">__delitem__</FONT></B>(self, key):
+    2:         doc = self._collection_inst.find_one({<B><FONT COLOR="#BC8F8F">'name'</FONT></B>: key})
+    2:         coll = self._jar._conn[doc[<B><FONT COLOR="#BC8F8F">'ref'</FONT></B>].database][doc[<B><FONT COLOR="#BC8F8F">'ref'</FONT></B>].collection]
+    2:         coll.remove(doc[<B><FONT COLOR="#BC8F8F">'ref'</FONT></B>].id)
+    2:         self._collection_inst.remove({<B><FONT COLOR="#BC8F8F">'name'</FONT></B>: key})
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">keys</FONT></B>(self):
+    6:         <B><FONT COLOR="#A020F0">return</FONT></B> [doc[<B><FONT COLOR="#BC8F8F">'name'</FONT></B>] <B><FONT COLOR="#A020F0">for</FONT></B> doc <B><FONT COLOR="#A020F0">in</FONT></B> self._collection_inst.find()]
+       
+       
+    2: <B><FONT COLOR="#A020F0">class</FONT></B> MongoDataManager(object):
+    1:     zope.interface.implements(interfaces.IMongoDataManager)
+       
+    1:     detect_conflicts = False
+    1:     default_database = <B><FONT COLOR="#BC8F8F">'mongopersist'</FONT></B>
+    1:     name_map_collection = <B><FONT COLOR="#BC8F8F">'persistence_name_map'</FONT></B>
+    1:     conflict_error_factory = staticmethod(create_conflict_error)
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">__init__</FONT></B>(self, conn, detect_conflicts=None, default_database=None,
+    1:                  root_database=None, root_collection=None,
+    1:                  name_map_collection=None, conflict_error_factory=None):
+  122:         self._conn = conn
+  122:         self._reader = serialize.ObjectReader(self)
+  122:         self._writer = serialize.ObjectWriter(self)
+  122:         self._registered_objects = []
+  122:         self._loaded_objects = []
+  122:         self._needs_to_join = True
+  122:         self._object_cache = {}
+  122:         self.annotations = {}
+  122:         <B><FONT COLOR="#A020F0">if</FONT></B> detect_conflicts <B><FONT COLOR="#A020F0">is</FONT></B> <B><FONT COLOR="#A020F0">not</FONT></B> None:
+    2:             self.detect_conflicts = detect_conflicts
+  122:         <B><FONT COLOR="#A020F0">if</FONT></B> default_database <B><FONT COLOR="#A020F0">is</FONT></B> <B><FONT COLOR="#A020F0">not</FONT></B> None:
+   57:             self.default_database = default_database
+  122:         <B><FONT COLOR="#A020F0">if</FONT></B> name_map_collection <B><FONT COLOR="#A020F0">is</FONT></B> <B><FONT COLOR="#A020F0">not</FONT></B> None:
+    1:             self.name_map_collection = name_map_collection
+  122:         <B><FONT COLOR="#A020F0">if</FONT></B> conflict_error_factory <B><FONT COLOR="#A020F0">is</FONT></B> <B><FONT COLOR="#A020F0">not</FONT></B> None:
+    1:             self.conflict_error_factory = conflict_error_factory
+  122:         self.transaction_manager = transaction.manager
+  122:         self.root = Root(self, root_database, root_collection)
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">dump</FONT></B>(self, obj):
+   23:         <B><FONT COLOR="#A020F0">return</FONT></B> self._writer.store(obj)
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">load</FONT></B>(self, dbref):
+  109:         <B><FONT COLOR="#A020F0">return</FONT></B> self._reader.get_ghost(dbref)
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">reset</FONT></B>(self):
+   65:         root = self.root
+   65:         self.__init__(self._conn)
+   65:         self.root = root
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">setstate</FONT></B>(self, obj):
+               <I><FONT COLOR="#B22222"># When reading a state from Mongo, we also need to join the
+</FONT></I>               <I><FONT COLOR="#B22222"># transaction, because we keep an active object cache that gets stale
+</FONT></I>               <I><FONT COLOR="#B22222"># after the transaction is complete and must be cleaned.
+</FONT></I>   46:         <B><FONT COLOR="#A020F0">if</FONT></B> self._needs_to_join:
+   29:             self.transaction_manager.get().join(self)
+   29:             self._needs_to_join = False
+   46:         self._reader.set_ghost_state(obj)
+   46:         self._loaded_objects.append(obj)
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">oldstate</FONT></B>(self, obj, tid):
+               <I><FONT COLOR="#B22222"># I cannot find any code using this method. Also, since we do not keep
+</FONT></I>               <I><FONT COLOR="#B22222"># version history, we always raise an error.
+</FONT></I>    1:         <B><FONT COLOR="#A020F0">raise</FONT></B> KeyError(tid)
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">register</FONT></B>(self, obj):
+   58:         <B><FONT COLOR="#A020F0">if</FONT></B> self._needs_to_join:
+   16:             self.transaction_manager.get().join(self)
+   16:             self._needs_to_join = False
+       
+   58:         <B><FONT COLOR="#A020F0">if</FONT></B> obj <B><FONT COLOR="#A020F0">is</FONT></B> <B><FONT COLOR="#A020F0">not</FONT></B> None <B><FONT COLOR="#A020F0">and</FONT></B> obj <B><FONT COLOR="#A020F0">not</FONT></B> <B><FONT COLOR="#A020F0">in</FONT></B> self._registered_objects:
+   56:             self._registered_objects.append(obj)
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">abort</FONT></B>(self, transaction):
+   15:         self.reset()
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">commit</FONT></B>(self, transaction):
+   39:         <B><FONT COLOR="#A020F0">if</FONT></B> <B><FONT COLOR="#A020F0">not</FONT></B> self.detect_conflicts:
+   32:             <B><FONT COLOR="#A020F0">return</FONT></B>
+               <I><FONT COLOR="#B22222"># Check each modified object to see whether Mongo has a new version of
+</FONT></I>               <I><FONT COLOR="#B22222"># the object.
+</FONT></I>   12:         <B><FONT COLOR="#A020F0">for</FONT></B> obj <B><FONT COLOR="#A020F0">in</FONT></B> self._registered_objects:
+                   <I><FONT COLOR="#B22222"># This object is not even added to the database yet, so there
+</FONT></I>                   <I><FONT COLOR="#B22222"># cannot be a conflict.
+</FONT></I>    7:             <B><FONT COLOR="#A020F0">if</FONT></B> obj._p_oid <B><FONT COLOR="#A020F0">is</FONT></B> None:
+    1:                 <B><FONT COLOR="#A020F0">continue</FONT></B>
+    6:             db_name, coll_name = self._writer.get_collection_name(obj)
+    6:             coll = self._conn[db_name][coll_name]
+    6:             new_doc = coll.find_one(obj._p_oid.id, fields=(<B><FONT COLOR="#BC8F8F">'_py_serial'</FONT></B>,))
+    6:             <B><FONT COLOR="#A020F0">if</FONT></B> new_doc <B><FONT COLOR="#A020F0">is</FONT></B> None:
+    1:                 <B><FONT COLOR="#A020F0">continue</FONT></B>
+    5:             <B><FONT COLOR="#A020F0">if</FONT></B> new_doc.get(<B><FONT COLOR="#BC8F8F">'_py_serial'</FONT></B>, 0) != serialize.u64(obj._p_serial):
+    2:                 <B><FONT COLOR="#A020F0">raise</FONT></B> self.conflict_error_factory(obj, new_doc)
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">tpc_begin</FONT></B>(self, transaction):
+   35:         <B><FONT COLOR="#A020F0">pass</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">tpc_vote</FONT></B>(self, transaction):
+   34:         <B><FONT COLOR="#A020F0">pass</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">tpc_finish</FONT></B>(self, transaction):
+   37:         written = []
+   92:         <B><FONT COLOR="#A020F0">for</FONT></B> obj <B><FONT COLOR="#A020F0">in</FONT></B> self._registered_objects:
+   55:             <B><FONT COLOR="#A020F0">if</FONT></B> getattr(obj, <B><FONT COLOR="#BC8F8F">'_p_mongo_sub_object'</FONT></B>, False):
+    5:                 obj = obj._p_mongo_doc_object
+   55:             <B><FONT COLOR="#A020F0">if</FONT></B> obj <B><FONT COLOR="#A020F0">in</FONT></B> written:
+    3:                 <B><FONT COLOR="#A020F0">continue</FONT></B>
+   52:             self._writer.store(obj)
+   52:             written.append(obj)
+   37:         self.reset()
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">tpc_abort</FONT></B>(self, transaction):
+    2:         self.abort(transaction)
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">sortKey</FONT></B>(self):
+    6:         <B><FONT COLOR="#A020F0">return</FONT></B> (<B><FONT COLOR="#BC8F8F">'MongoDataManager'</FONT></B>, 0)
+</pre>
+
+      <div class="footer">
+      Generated for revision 5108:5114M on 2011-11-04 17:02:17.574731Z
+      </div>
+    </body>
+    </html>

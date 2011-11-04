@@ -1,0 +1,168 @@
+       ##############################################################################
+       #
+       # Copyright (c) 2011 Zope Foundation and Contributors.
+       # All Rights Reserved.
+       #
+       # This software is subject to the provisions of the Zope Public License,
+       # Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+       # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+       # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+       # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+       # FOR A PARTICULAR PURPOSE.
+       #
+       ##############################################################################
+    1: """Mongo Persistence Interfaces"""
+    1: from __future__ import absolute_import
+    1: import datetime
+    1: import persistent.interfaces
+    1: import transaction.interfaces
+    1: import types
+    1: import zope.interface
+    1: import zope.schema
+    1: from pymongo import objectid, dbref
+       
+       MONGO_NATIVE_TYPES = (
+    1:     int, float, unicode, datetime.datetime, types.NoneType,
+    1:     objectid.ObjectId, dbref.DBRef)
+       
+    2: class ConflictError(transaction.interfaces.TransientError):
+       
+    1:     def __init__(self, message=None, object=None, serials=None):
+    3:         self.message = message or "database conflict error"
+    3:         self.object = object
+    3:         self.serials = serials
+       
+    1:     @property
+           def new_serial(self):
+    6:         return self.serials[0]
+       
+    1:     @property
+           def old_serial(self):
+    6:         return self.serials[1]
+       
+    1:     def __str__(self):
+               extras = [
+    6:             'oid %s' %self.object._p_oid,
+    6:             'class %s' %self.object.__class__.__name__,
+    6:             'start serial %s' %self.old_serial,
+    6:             'current serial %s' %self.new_serial]
+    6:         return "%s (%s)" % (self.message, ", ".join(extras))
+       
+    1:     def __repr__(self):
+    1:         return '%s: %s' %(self.__class__.__name__, self)
+       
+       
+    2: class CircularReferenceError(Exception):
+    1:     pass
+       
+    2: class IObjectSerializer(zope.interface.Interface):
+           """An object serializer allows for custom serialization output for
+    1:     objects."""
+       
+    1:     def can_read(state):
+               """Returns a boolean indicating whether this serializer can deserialize
+               this state."""
+       
+    1:     def get_object(state):
+               """Convert the state to an object."""
+       
+    1:     def can_write(obj):
+               """Returns a boolean indicating whether this serializer can serialize
+               this object."""
+       
+    1:     def get_state(obj):
+               """Convert the object to a state/document."""
+       
+       
+    2: class IObjectWriter(zope.interface.Interface):
+    1:     """The object writer stores an object in the database."""
+       
+    1:     def get_non_persistent_state(obj, seen):
+               """Convert a non-persistent object to a Mongo state/document."""
+       
+    1:     def get_persistent_state(obj, seen):
+               """Convert a persistent object to a Mongo state/document."""
+       
+    1:     def get_state(obj, seen=None):
+               """Convert an arbitrary object to a Mongo state/document.
+       
+               A ``CircularReferenceError`` is raised, if a non-persistent loop is
+               detected.
+               """
+       
+    1:     def store(obj):
+               """Store an object in the database."""
+       
+       
+    2: class IObjectReader(zope.interface.Interface):
+    1:     """The object reader reads an object from the database."""
+       
+    1:     def resolve(path):
+               """Resolve a path to a class.
+       
+               The path can be any string. It is the responsibility of the resolver
+               to maintain the mapping from path to class.
+               """
+       
+    1:     def get_object(state, obj):
+               """Get an object from the given state.
+       
+               The ``obj`` is the Mongo document of which the created object is part
+               of.
+               """
+       
+    1:     def set_ghost_state(obj):
+               """Convert a ghosted object to an active object by loading its state.
+               """
+       
+    1:     def get_ghost(coll_name, oid):
+               """Get the ghosted version of the object.
+               """
+       
+       
+    2: class IMongoDataManager(persistent.interfaces.IPersistentDataManager):
+    1:     """A persistent data manager that stores data in Mongo."""
+       
+    1:     root = zope.interface.Attribute(
+    1:         """Get the root object, which is a mapping.""")
+       
+    1:     def reset():
+               """Reset the datamanager for the next transaction."""
+       
+    1:     def dump(obj):
+               """Store the object to Mongo and return its DBRef."""
+       
+    1:     def load(dbref):
+               """Load the object from Mongo by using its DBRef.
+       
+               Note: The returned object is in the ghost state.
+               """
+       
+       
+    2: class IMongoConnectionPool(zope.interface.Interface):
+    1:     """MongoDB connection pool"""
+       
+    1:     connection = zope.interface.Attribute('MongoDBConnection instance')
+       
+    1:     host = zope.schema.TextLine(
+    1:         title=u'MongoDB Server Hostname (without protocol)',
+    1:         description=u'MongoDB Server Hostname or IPv4 address',
+    1:         default=u'localhost',
+    1:         required=True)
+       
+    1:     port = zope.schema.Int(
+    1:         title=u'MongoDB Server Port',
+    1:         description=u'MongoDB Server Port',
+    1:         default=27017,
+    1:         required=True)
+       
+       
+    2: class IMongoDataManagerProvider(zope.interface.Interface):
+           """Utility to get a mongo data manager.
+       
+           Implementations of this utility ususally maintain connection information
+           and ensure that there is one consistent datamanager per thread.
+    1:     """
+       
+    1:     def get():
+               """Return a mongo data manager."""

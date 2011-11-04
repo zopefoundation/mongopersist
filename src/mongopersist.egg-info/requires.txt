@@ -1,0 +1,14 @@
+ZODB3
+lru
+pymongo
+setuptools
+zope.dottedname
+zope.interface
+
+[zope]
+rwproperty
+zope.container
+
+[test]
+zope.app.testing
+zope.testing

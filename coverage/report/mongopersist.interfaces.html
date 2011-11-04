@@ -1,0 +1,193 @@
+
+    <html>
+      <head><title>Test coverage for mongopersist.interfaces</title>
+      <style type="text/css">
+        a {text-decoration: none; display: block; padding-right: 1em;}
+        a:hover {background: #EFA;}
+        hr {height: 1px; border: none; border-top: 1px solid gray;}
+        .notcovered {background: #FCC;}
+        .footer {margin: 2em; font-size: small; color: gray;}
+      </style>
+      </head>
+      <body><h1>Test coverage for mongopersist.interfaces</h1>
+      <table>
+    
+<tr><td><a href="mongopersist.html">mongopersist/</a></td> <td style="background: yellow">&nbsp;&nbsp;&nbsp;&nbsp;</td> <td>covered 99% (1 of 695 uncovered)</td></tr>
+<tr><td><a href="mongopersist.interfaces.html">&nbsp;&nbsp;&nbsp;&nbsp;interfaces.py</a></td> <td style="background: green">&nbsp;&nbsp;&nbsp;&nbsp;</td> <td>covered 100% (0 of 71 uncovered)</td></tr>
+</table><hr/>
+<pre>
+       <I><FONT COLOR="#B22222">##############################################################################
+</FONT></I>       <I><FONT COLOR="#B22222">#
+</FONT></I>       <I><FONT COLOR="#B22222"># Copyright (c) 2011 Zope Foundation and Contributors.
+</FONT></I>       <I><FONT COLOR="#B22222"># All Rights Reserved.
+</FONT></I>       <I><FONT COLOR="#B22222">#
+</FONT></I>       <I><FONT COLOR="#B22222"># This software is subject to the provisions of the Zope Public License,
+</FONT></I>       <I><FONT COLOR="#B22222"># Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+</FONT></I>       <I><FONT COLOR="#B22222"># THIS SOFTWARE IS PROVIDED &quot;AS IS&quot; AND ANY AND ALL EXPRESS OR IMPLIED
+</FONT></I>       <I><FONT COLOR="#B22222"># WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+</FONT></I>       <I><FONT COLOR="#B22222"># WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+</FONT></I>       <I><FONT COLOR="#B22222"># FOR A PARTICULAR PURPOSE.
+</FONT></I>       <I><FONT COLOR="#B22222">#
+</FONT></I>       <I><FONT COLOR="#B22222">##############################################################################
+</FONT></I>    1: <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Mongo Persistence Interfaces&quot;&quot;&quot;</FONT></B>
+    1: <B><FONT COLOR="#A020F0">from</FONT></B> __future__ <B><FONT COLOR="#A020F0">import</FONT></B> absolute_import
+    1: <B><FONT COLOR="#A020F0">import</FONT></B> datetime
+    1: <B><FONT COLOR="#A020F0">import</FONT></B> persistent.interfaces
+    1: <B><FONT COLOR="#A020F0">import</FONT></B> transaction.interfaces
+    1: <B><FONT COLOR="#A020F0">import</FONT></B> types
+    1: <B><FONT COLOR="#A020F0">import</FONT></B> zope.interface
+    1: <B><FONT COLOR="#A020F0">import</FONT></B> zope.schema
+    1: <B><FONT COLOR="#A020F0">from</FONT></B> pymongo <B><FONT COLOR="#A020F0">import</FONT></B> objectid, dbref
+       
+       MONGO_NATIVE_TYPES = (
+    1:     int, float, unicode, datetime.datetime, types.NoneType,
+    1:     objectid.ObjectId, dbref.DBRef)
+       
+    2: <B><FONT COLOR="#A020F0">class</FONT></B> ConflictError(transaction.interfaces.TransientError):
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">__init__</FONT></B>(self, message=None, object=None, serials=None):
+    3:         self.message = message <B><FONT COLOR="#A020F0">or</FONT></B> <B><FONT COLOR="#BC8F8F">&quot;database conflict error&quot;</FONT></B>
+    3:         self.object = object
+    3:         self.serials = serials
+       
+    1:     @property
+           <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">new_serial</FONT></B>(self):
+    6:         <B><FONT COLOR="#A020F0">return</FONT></B> self.serials[0]
+       
+    1:     @property
+           <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">old_serial</FONT></B>(self):
+    6:         <B><FONT COLOR="#A020F0">return</FONT></B> self.serials[1]
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">__str__</FONT></B>(self):
+               extras = [
+    6:             <B><FONT COLOR="#BC8F8F">'oid %s'</FONT></B> %self.object._p_oid,
+    6:             <B><FONT COLOR="#BC8F8F">'class %s'</FONT></B> %self.object.__class__.__name__,
+    6:             <B><FONT COLOR="#BC8F8F">'start serial %s'</FONT></B> %self.old_serial,
+    6:             <B><FONT COLOR="#BC8F8F">'current serial %s'</FONT></B> %self.new_serial]
+    6:         <B><FONT COLOR="#A020F0">return</FONT></B> <B><FONT COLOR="#BC8F8F">&quot;%s (%s)&quot;</FONT></B> % (self.message, <B><FONT COLOR="#BC8F8F">&quot;, &quot;</FONT></B>.join(extras))
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">__repr__</FONT></B>(self):
+    1:         <B><FONT COLOR="#A020F0">return</FONT></B> <B><FONT COLOR="#BC8F8F">'%s: %s'</FONT></B> %(self.__class__.__name__, self)
+       
+       
+    2: <B><FONT COLOR="#A020F0">class</FONT></B> CircularReferenceError(Exception):
+    1:     <B><FONT COLOR="#A020F0">pass</FONT></B>
+       
+    2: <B><FONT COLOR="#A020F0">class</FONT></B> IObjectSerializer(zope.interface.Interface):
+           <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;An object serializer allows for custom serialization output for
+    1:     objects.&quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">can_read</FONT></B>(state):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Returns a boolean indicating whether this serializer can deserialize
+               this state.&quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">get_object</FONT></B>(state):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Convert the state to an object.&quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">can_write</FONT></B>(obj):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Returns a boolean indicating whether this serializer can serialize
+               this object.&quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">get_state</FONT></B>(obj):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Convert the object to a state/document.&quot;&quot;&quot;</FONT></B>
+       
+       
+    2: <B><FONT COLOR="#A020F0">class</FONT></B> IObjectWriter(zope.interface.Interface):
+    1:     <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;The object writer stores an object in the database.&quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">get_non_persistent_state</FONT></B>(obj, seen):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Convert a non-persistent object to a Mongo state/document.&quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">get_persistent_state</FONT></B>(obj, seen):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Convert a persistent object to a Mongo state/document.&quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">get_state</FONT></B>(obj, seen=None):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Convert an arbitrary object to a Mongo state/document.
+       
+               A ``CircularReferenceError`` is raised, if a non-persistent loop is
+               detected.
+               &quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">store</FONT></B>(obj):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Store an object in the database.&quot;&quot;&quot;</FONT></B>
+       
+       
+    2: <B><FONT COLOR="#A020F0">class</FONT></B> IObjectReader(zope.interface.Interface):
+    1:     <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;The object reader reads an object from the database.&quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">resolve</FONT></B>(path):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Resolve a path to a class.
+       
+               The path can be any string. It is the responsibility of the resolver
+               to maintain the mapping from path to class.
+               &quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">get_object</FONT></B>(state, obj):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Get an object from the given state.
+       
+               The ``obj`` is the Mongo document of which the created object is part
+               of.
+               &quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">set_ghost_state</FONT></B>(obj):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Convert a ghosted object to an active object by loading its state.
+               &quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">get_ghost</FONT></B>(coll_name, oid):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Get the ghosted version of the object.
+               &quot;&quot;&quot;</FONT></B>
+       
+       
+    2: <B><FONT COLOR="#A020F0">class</FONT></B> IMongoDataManager(persistent.interfaces.IPersistentDataManager):
+    1:     <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;A persistent data manager that stores data in Mongo.&quot;&quot;&quot;</FONT></B>
+       
+    1:     root = zope.interface.Attribute(
+    1:         <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Get the root object, which is a mapping.&quot;&quot;&quot;</FONT></B>)
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">reset</FONT></B>():
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Reset the datamanager for the next transaction.&quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">dump</FONT></B>(obj):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Store the object to Mongo and return its DBRef.&quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">load</FONT></B>(dbref):
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Load the object from Mongo by using its DBRef.
+       
+               Note: The returned object is in the ghost state.
+               &quot;&quot;&quot;</FONT></B>
+       
+       
+    2: <B><FONT COLOR="#A020F0">class</FONT></B> IMongoConnectionPool(zope.interface.Interface):
+    1:     <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;MongoDB connection pool&quot;&quot;&quot;</FONT></B>
+       
+    1:     connection = zope.interface.Attribute(<B><FONT COLOR="#BC8F8F">'MongoDBConnection instance'</FONT></B>)
+       
+    1:     host = zope.schema.TextLine(
+    1:         title=u<B><FONT COLOR="#BC8F8F">'MongoDB Server Hostname (without protocol)'</FONT></B>,
+    1:         description=u<B><FONT COLOR="#BC8F8F">'MongoDB Server Hostname or IPv4 address'</FONT></B>,
+    1:         default=u<B><FONT COLOR="#BC8F8F">'localhost'</FONT></B>,
+    1:         required=True)
+       
+    1:     port = zope.schema.Int(
+    1:         title=u<B><FONT COLOR="#BC8F8F">'MongoDB Server Port'</FONT></B>,
+    1:         description=u<B><FONT COLOR="#BC8F8F">'MongoDB Server Port'</FONT></B>,
+    1:         default=27017,
+    1:         required=True)
+       
+       
+    2: <B><FONT COLOR="#A020F0">class</FONT></B> IMongoDataManagerProvider(zope.interface.Interface):
+           <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Utility to get a mongo data manager.
+       
+           Implementations of this utility ususally maintain connection information
+           and ensure that there is one consistent datamanager per thread.
+    1:     &quot;&quot;&quot;</FONT></B>
+       
+    1:     <B><FONT COLOR="#A020F0">def</FONT></B> <B><FONT COLOR="#0000FF">get</FONT></B>():
+               <B><FONT COLOR="#BC8F8F">&quot;&quot;&quot;Return a mongo data manager.&quot;&quot;&quot;</FONT></B>
+</pre>
+
+      <div class="footer">
+      Generated for revision 5108:5114M on 2011-11-04 17:02:17.574731Z
+      </div>
+    </body>
+    </html>

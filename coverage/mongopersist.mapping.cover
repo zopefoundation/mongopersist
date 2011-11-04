@@ -1,0 +1,64 @@
+       ##############################################################################
+       #
+       # Copyright (c) 2011 Zope Foundation and Contributors.
+       # All Rights Reserved.
+       #
+       # This software is subject to the provisions of the Zope Public License,
+       # Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+       # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+       # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+       # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+       # FOR A PARTICULAR PURPOSE.
+       #
+       ##############################################################################
+    1: """Mongo Mapping Implementations"""
+    1: import UserDict
+    1: import pymongo
+       
+    1: from mongopersist import interfaces
+       
+    2: class MongoCollectionMapping(UserDict.DictMixin, object):
+    1:     __mongo_database__ = None
+    1:     __mongo_collection__ = None
+    1:     __mongo_mapping_key__ = 'key'
+       
+    1:     def __init__(self, jar):
+    8:         self._m_jar = jar
+       
+    1:     def __mongo_filter__(self):
+    9:         return {}
+       
+    1:     def get_mongo_collection(self):
+   14:         db_name = self.__mongo_database__ or self._m_jar.default_database
+   14:         return self._m_jar._conn[db_name][self.__mongo_collection__]
+       
+    1:     def __getitem__(self, key):
+    6:         filter = self.__mongo_filter__()
+    6:         filter[self.__mongo_mapping_key__] = key
+    6:         doc = self.get_mongo_collection().find_one(filter)
+    6:         if doc is None:
+    2:             raise KeyError(key)
+    4:         db_name = self.__mongo_database__ or self._m_jar.default_database
+    4:         dbref = pymongo.dbref.DBRef(
+    4:             self.__mongo_collection__, doc['_id'], db_name)
+    4:         return self._m_jar._reader.get_ghost(dbref)
+       
+    1:     def __setitem__(self, key, value):
+               # Even though setting the attribute should register the object with
+               # the data manager, the value might not be in the DB at all at this
+               # point, so registering it manually ensures that new objects get added.
+    2:         self._m_jar.register(value)
+    2:         setattr(value, self.__mongo_mapping_key__, key)
+       
+    1:     def __delitem__(self, key):
+               # Deleting the object from the database is not our job. We simply
+               # remove it from the dictionary.
+    1:         value = self[key]
+    1:         setattr(value, self.__mongo_mapping_key__, None)
+       
+    1:     def keys(self):
+    7:         filter = self.__mongo_filter__()
+    7:         filter[self.__mongo_mapping_key__] = {'$ne': None}
+               return [
+    7:             doc[self.__mongo_mapping_key__]
+   15:             for doc in self.get_mongo_collection().find(filter)]
