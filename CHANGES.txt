@@ -2,10 +2,11 @@
 CHANGES
 =======
 
-0.5.1 (unreleased)
+0.5.1 (2011-12-22)
 ------------------
 
-- ...
+- Bug: The ``MongoContainer`` class did not implement the ``IContainer``
+  interface.
 
 0.5.0 (2011-11-04)
 ------------------

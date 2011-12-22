@@ -18,6 +18,7 @@ import pymongo.dbref
 import zope.component
 from rwproperty import getproperty, setproperty
 from zope.container import contained, sample
+from zope.container.interfaces import IContainer
 
 from mongopersist import interfaces, serialize
 
@@ -82,9 +83,11 @@ class SimpleMongoContainer(sample.SampleContainer, persistent.Persistent):
         super(SimpleMongoContainer, self).__delitem__(key)
         self._p_changed = True
 
+
 class MongoContainer(contained.Contained,
                      persistent.Persistent,
                      UserDict.DictMixin):
+    zope.interface.implements(IContainer)
     _m_database = None
     _m_collection = None
     _m_mapping_key = 'key'
