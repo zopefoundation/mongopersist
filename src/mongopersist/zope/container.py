@@ -21,7 +21,7 @@ from zope.container import contained, sample
 from zope.container.interfaces import IContainer
 
 from mongopersist import interfaces, serialize
-
+from mongopersist.zope import interfaces as zinterfaces
 
 class MongoContained(contained.Contained):
 
@@ -87,7 +87,7 @@ class SimpleMongoContainer(sample.SampleContainer, persistent.Persistent):
 class MongoContainer(contained.Contained,
                      persistent.Persistent,
                      UserDict.DictMixin):
-    zope.interface.implements(IContainer)
+    zope.interface.implements(IContainer, zinterfaces.IMongoContainer)
     _m_database = None
     _m_collection = None
     _m_mapping_key = 'key'

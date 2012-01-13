@@ -2,10 +2,11 @@
 CHANGES
 =======
 
-0.5.2 (unreleased)
+0.5.2 (2012-01-13)
 ------------------
 
-- ...
+- Feature: Added an interface for the ``MongoContainer`` class describing the
+  additional attributes and methods.
 
 0.5.1 (2011-12-22)
 ------------------
