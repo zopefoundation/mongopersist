@@ -2,10 +2,12 @@
 CHANGES
 =======
 
-0.5.3 (unreleased)
+0.5.3 (2012/01/16)
 ------------------
 
-- ...
+- Bug: ``MongoContainer`` did not emit any Zope container or lifecycle
+  events. This has been fixed by using the ``zope.container.contained``
+  helper functions.
 
 0.5.2 (2012-01-13)
 ------------------

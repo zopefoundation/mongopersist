@@ -22,6 +22,7 @@ import re
 import transaction
 import zope.component
 import zope.interface
+import zope.lifecycleevent
 from pprint import pprint
 from zope.app.testing import placelesssetup
 from zope.container import contained, btree
@@ -32,6 +33,9 @@ from mongopersist.zope import container
 
 class ApplicationRoot(container.SimpleMongoContainer):
     _p_mongo_collection = 'root'
+
+    def __repr__(self):
+        return '<ApplicationRoot>'
 
 class SimplePerson(contained.Contained, persistent.Persistent):
     _p_mongo_collection = 'person'
@@ -54,6 +58,10 @@ def doctest_SimpleMongoContainer_basic():
 
       >>> cn = 'mongopersist.zope.container.SimpleMongoContainer'
 
+    Let's make sure events are fired correctly:
+
+      >>> zope.component.provideHandler(handleObjectModifiedEvent)
+
     Let's add a container to the root:
 
       >>> dm.reset()
@@ -66,6 +74,7 @@ def doctest_SimpleMongoContainer_basic():
     As you can see, the serialization is very clean. Next we add a person.
 
       >>> dm.root['c'][u'stephan'] = SimplePerson(u'Stephan')
+      ContainerModifiedEvent: <...SimpleMongoContainer ...>
       >>> dm.root['c'].keys()
       [u'stephan']
       >>> dm.root['c'][u'stephan']
@@ -113,6 +122,7 @@ def doctest_SimpleMongoContainer_basic():
     Now remove the item:
 
       >>> del dm.root['c']['stephan']
+      ContainerModifiedEvent: <...SimpleMongoContainer ...>
 
     The changes are immediately visible.
 
@@ -134,6 +144,10 @@ def doctest_SimpleMongoContainer_basic():
 def doctest_MongoContainer_basic():
     """MongoContainer: basic
 
+    Let's make sure events are fired correctly:
+
+      >>> zope.component.provideHandler(handleObjectModifiedEvent)
+
     Let's add a container to the root:
 
       >>> transaction.commit()
@@ -148,6 +162,7 @@ def doctest_MongoContainer_basic():
     avoidable using a sub-class.
 
       >>> dm.root['c'][u'stephan'] = Person(u'Stephan')
+      ContainerModifiedEvent: <...MongoContainer ...>
       >>> dm.root['c'].keys()
       [u'stephan']
       >>> dm.root['c'][u'stephan']
@@ -189,6 +204,7 @@ def doctest_MongoContainer_basic():
     Now remove the item:
 
       >>> del dm.root['c']['stephan']
+      ContainerModifiedEvent: <...MongoContainer ...>
 
     The changes are immediately visible.
 
@@ -418,6 +434,10 @@ def doctest_AllItemsMongoContainer_basic():
 def doctest_SubDocumentMongoContainer_basic():
     r"""SubDocumentMongoContainer: basic
 
+    Let's make sure events are fired correctly:
+
+      >>> zope.component.provideHandler(handleObjectModifiedEvent)
+
     Sub_document Mongo containers are useful, since they avoid the creation of
     a commonly trivial collections holding meta-data for the collection
     object. But they require a root document:
@@ -429,6 +449,7 @@ def doctest_SubDocumentMongoContainer_basic():
 
       >>> dm.root['app_root']['people'] = \
       ...     container.SubDocumentMongoContainer('person')
+      ContainerModifiedEvent: <ApplicationRoot>
 
       >>> transaction.commit()
       >>> db = dm._conn[DBNAME]
@@ -447,13 +468,14 @@ def doctest_SubDocumentMongoContainer_basic():
       >>> dm.root['app_root']['people']
       <mongopersist.zope.container.SubDocumentMongoContainer ...>
       >>> dm.root['app_root']['people'].__parent__
-      <mongopersist.zope.tests.test_container.ApplicationRoot object at 0x7f>
+      <ApplicationRoot>
       >>> dm.root['app_root']['people'].__name__
       'people'
 
     Let's add an item to the container:
 
       >>> dm.root['app_root']['people'][u'stephan'] = Person(u'Stephan')
+      ContainerModifiedEvent: <...SubDocumentMongoContainer ...>
       >>> dm.root['app_root']['people'].keys()
       [u'stephan']
       >>> dm.root['app_root']['people'][u'stephan']
@@ -537,6 +559,14 @@ checker = renormalizing.RENormalizing([
     (re.compile(r"zodb-[0-9a-f].*"),
      "zodb-01af3b00c5"),
     ])
+
+@zope.component.adapter(
+    zope.interface.Interface,
+    zope.lifecycleevent.interfaces.IObjectModifiedEvent
+    )
+def handleObjectModifiedEvent(object, event):
+    print event.__class__.__name__+':', repr(object)
+
 
 def setUp(test):
     placelesssetup.setUp(test)

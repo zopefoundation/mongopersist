@@ -167,7 +167,8 @@ class MongoContainer(contained.Contained,
         obj._v_parent = self
         return obj
 
-    def __setitem__(self, key, value):
+
+    def _real_setitem(self, key, value):
         # This call by iteself caues the state to change _p_changed to True.
         setattr(value, self._m_mapping_key, key)
         if self._m_parent_key is not None:
@@ -175,10 +176,11 @@ class MongoContainer(contained.Contained,
         self._m_jar.register(value)
         # Temporarily store the added object, so it is immediately available
         # via the API.
-        value._v_key = key
-        value._v_parent = self
         self._added[key] = value
         self._deleted.pop(key, None)
+
+    def __setitem__(self, key, value):
+        contained.setitem(self, self._real_setitem, key, value)
 
     def __delitem__(self, key):
         # Deleting the object from the database is not our job. We simply
@@ -190,6 +192,7 @@ class MongoContainer(contained.Contained,
             delattr(value, self._m_parent_key)
         self._deleted[key] = value
         self._added.pop(key, None)
+        contained.uncontained(value, self, key)
 
     def keys(self):
         filter = self._m_get_items_filter()
