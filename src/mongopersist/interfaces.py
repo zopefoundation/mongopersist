@@ -166,3 +166,10 @@ class IMongoDataManagerProvider(zope.interface.Interface):
 
     def get():
         """Return a mongo data manager."""
+
+
+class IMongoSpecProcessor(zope.interface.Interface):
+    """An adapter to process find/update spec's"""
+
+    def process(collection, spec):
+        """return the processed spec here"""

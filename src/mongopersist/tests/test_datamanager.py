@@ -18,7 +18,7 @@ import pprint
 import transaction
 from pymongo import dbref, objectid
 
-from mongopersist import testing, datamanager
+from mongopersist import interfaces, testing, datamanager
 
 class Foo(persistent.Persistent):
     def __init__(self, name=None):
@@ -344,6 +344,45 @@ def doctest_MongoDataManager_sortKey():
 
       >>> dm.sortKey()
       ('MongoDataManager', 0)
+    """
+
+def doctest_processSpec():
+    r"""processSpec(): General test
+
+    A simple helper function that returns the spec itself if no
+    IMongoSpecProcessor adapter is registered.
+
+      >>> from zope.testing.cleanup import CleanUp as PlacelessSetup
+      >>> PlacelessSetup().setUp()
+
+
+      >>> datamanager.processSpec('a_collection', {'life': 42})
+      {'life': 42}
+
+    Now let's register an adapter
+
+      >>> class Processor(object):
+      ...     def __init__(self, context):
+      ...         pass
+      ...     def process(self, collection, spec):
+      ...         print 'passed in:', collection, spec
+      ...         return {'life': 24}
+
+      >>> import zope.interface
+      >>> from zope.component import provideAdapter
+      >>> provideAdapter(Processor, (zope.interface.Interface,), interfaces.IMongoSpecProcessor)
+
+    And see what happens on processSpec:
+
+      >>> datamanager.processSpec('a_collection', {'life': 42})
+      passed in: a_collection {'life': 42}
+      {'life': 24}
+
+    We get the processed spec in return.
+
+
+      >>> PlacelessSetup().tearDown()
+
     """
 
 def test_suite():
