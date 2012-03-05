@@ -22,6 +22,7 @@ from zope.container.interfaces import IContainer
 
 from mongopersist import interfaces, serialize
 from mongopersist.zope import interfaces as zinterfaces
+from mongopersist.datamanager import processSpec
 
 class MongoContained(contained.Contained):
 
@@ -156,7 +157,8 @@ class MongoContainer(contained.Contained,
             raise KeyError(key)
         filter = self._m_get_items_filter()
         filter[self._m_mapping_key] = key
-        doc = self.get_collection().find_one(filter, fields=())
+        coll = self.get_collection()
+        doc = coll.find_one(processSpec(coll, filter), fields=())
         if doc is None:
             raise KeyError(key)
         dbref = pymongo.dbref.DBRef(
@@ -197,9 +199,10 @@ class MongoContainer(contained.Contained,
     def keys(self):
         filter = self._m_get_items_filter()
         filter[self._m_mapping_key] = {'$ne': None}
+        coll = self.get_collection()
         keys = [
             doc[self._m_mapping_key]
-            for doc in self.get_collection().find(filter)
+            for doc in coll.find(processSpec(coll, filter))
             if not doc[self._m_mapping_key] in self._deleted]
         keys += self._added.keys()
         return keys
@@ -208,7 +211,8 @@ class MongoContainer(contained.Contained,
         if spec is None:
             spec  = {}
         spec.update(self._m_get_items_filter())
-        return self.get_collection().find(spec, *args, **kwargs)
+        coll = self.get_collection()
+        return coll.find(processSpec(coll, spec), *args, **kwargs)
 
     def find(self, spec=None, fields=None, *args, **kwargs):
         # If fields were not specified, we only request the oid and the key.
@@ -230,7 +234,8 @@ class MongoContainer(contained.Contained,
         if not isinstance(spec_or_id, dict):
             spec_or_id = {'_id': spec_or_id}
         spec_or_id.update(self._m_get_items_filter())
-        return self.get_collection().find_one(spec_or_id, *args, **kwargs)
+        coll = self.get_collection()
+        return coll.find_one(processSpec(coll, spec_or_id), *args, **kwargs)
 
     def find_one(self, spec_or_id=None, fields=None, *args, **kwargs):
         # If fields were not specified, we only request the oid and the key.

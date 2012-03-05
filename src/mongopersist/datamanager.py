@@ -27,6 +27,14 @@ def create_conflict_error(obj, new_doc):
         None, obj,
         (new_doc.get('_py_serial', 0), serialize.u64(obj._p_serial)))
 
+def processSpec(collection, spec):
+    try:
+        adapter = interfaces.IMongoSpecProcessor(None)
+    except TypeError:
+        # by default nothing is registered, handle that case
+        return spec
+
+    return adapter.process(collection, spec)
 
 class Root(UserDict.DictMixin):
 
@@ -43,7 +51,8 @@ class Root(UserDict.DictMixin):
         self._collection_inst = db[self.collection]
 
     def __getitem__(self, key):
-        doc = self._collection_inst.find_one({'name': key})
+        doc = self._collection_inst.find_one(
+            processSpec(self._collection_inst, {'name': key}))
         if doc is None:
             raise KeyError(key)
         return self._jar.load(doc['ref'])
@@ -56,7 +65,8 @@ class Root(UserDict.DictMixin):
         self._collection_inst.insert(doc)
 
     def __delitem__(self, key):
-        doc = self._collection_inst.find_one({'name': key})
+        doc = self._collection_inst.find_one(
+            processSpec(self._collection_inst, {'name': key}))
         coll = self._jar._conn[doc['ref'].database][doc['ref'].collection]
         coll.remove(doc['ref'].id)
         self._collection_inst.remove({'name': key})
