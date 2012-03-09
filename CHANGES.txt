@@ -11,7 +11,8 @@ CHANGES
 0.5.4 (2012-03-05)
 ------------------
 
-- ...
+- Feature: Added a hook via the IMongoSpecProcessor adapter that gets called
+  before each find to process/log spec.
 
 0.5.3 (2012/01/16)
 ------------------
