@@ -5,7 +5,14 @@ CHANGES
 0.5.5 (unreleased)
 ------------------
 
-- Moved ZODB dependency to test dependency
+- Feature: Moved ZODB dependency to test dependency
+
+- Bug: When an object has a SimpleContainer as attribute, then simply loading
+  this object would cause it to written at the end of the transaction. The
+  culprit was a persistent dictionary containing the SimpleContainer
+  state. This dictionary got modified during state load and caused it to be
+  registered as a changed object and it was marked as a ``_p_mongo_sub_object``
+  and had the original object as ``_p_mongo_doc_object``.
 
 
 0.5.4 (2012-03-05)

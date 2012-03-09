@@ -49,6 +49,11 @@ class SimpleMongoContainer(sample.SampleContainer, persistent.Persistent):
         return state
 
     def __setstate__(self, state):
+        # Mongopersist always reads a dictionary as persistent dictionary. And
+        # modifying this dictionary will cause the persistence mechanism to
+        # kick in. So we create a new object that we can easily modify without
+        # harm.
+        state = dict(state)
         state['_SampleContainer__data'] = state.pop('data', {})
         super(SimpleMongoContainer, self).__setstate__(state)
 
