@@ -31,6 +31,7 @@ setup (
         test = (
             'zope.app.testing',
             'zope.testing',
+            'ZODB3',
             ),
         zope = (
             'rwproperty',
@@ -38,7 +39,7 @@ setup (
             ),
         ),
     install_requires = [
-        'ZODB3',
+        'transaction >=1.1.0',
         'lru',
         'pymongo',
         'setuptools',
