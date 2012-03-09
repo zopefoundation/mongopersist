@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.5.5 (unreleased)
+0.5.5 (2012-03-09)
 ------------------
 
 - Feature: Moved ZODB dependency to test dependency
