@@ -44,6 +44,13 @@ class IMongoContainer(zope.interface.Interface):
             u'the parent/container reference.'),
         default='parent')
 
+    _m_remove_documents = zope.schema.Bool(
+        title=u'Remove Documents',
+        description=(
+            u'A flag when set causes documents to be removed from the DB when '
+            u'they are removed from the container.'),
+        default=True)
+
     def _m_get_parent_key_value():
         """Returns the value that is used to specify a particular container as
         the parent of the item.

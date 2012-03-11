@@ -70,6 +70,9 @@ def doctest_MongoCollectionMapping_simple():
     managing:
 
       >>> container.get_mongo_collection()
+      <mongopersist.datamanager.CollectionWrapper object at 0x001122>
+
+      >>> container.get_mongo_collection().collection
       Collection(Database(Connection('localhost', 27017),
                           u'mongopersist_test'),
                           u'mongopersist.tests.test_mapping.Item')

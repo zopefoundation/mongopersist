@@ -38,7 +38,8 @@ CHANGES
   * Implemented a flushing policy: Changes are always flushed before any query
     is made. A simple wrapper for the ``pymongo`` collection
     (``CollectionWrapper``) ensures that flush is called before the correct
-    method calls. The new API method ``DataManager.get_collection(obj)``
+    method calls. Two new API methods ``DataManager.get_collection(db_name,
+    coll_name)`` and ``DataManager.get_collection_from_object(obj)``
     allows one to quickly get a wrapped collection.
 
 - The ``MongoContainer`` class now removes objects from the database upon

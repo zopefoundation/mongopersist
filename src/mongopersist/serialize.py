@@ -212,7 +212,7 @@ class ObjectWriter(object):
 
     def store(self, obj, ref_only=False):
         db_name, coll_name = self.get_collection_name(obj)
-        coll = self._jar._conn[db_name][coll_name]
+        coll = self._jar._get_collection(db_name, coll_name)
         if ref_only:
             # We only want to get OID quickly. Trying to reduce the full state
             # might cause infinite recusrion loop. (Example: 2 new objects
@@ -281,8 +281,9 @@ class ObjectReader(object):
                 raise ImportError(dbref)
             # Multiple object types are stored in the collection. We have to
             # look at the object to find out the type.
-            obj_doc = self._jar._conn[dbref.database][dbref.collection].find_one(
-                dbref.id, fields=('_py_persistent_type',))
+            obj_doc = self._jar\
+                ._get_collection(dbref.database, dbref.collection).find_one(
+                    dbref.id, fields=('_py_persistent_type',))
             if '_py_persistent_type' in obj_doc:
                 klass = self.simple_resolve(obj_doc['_py_persistent_type'])
             else:
@@ -375,7 +376,8 @@ class ObjectReader(object):
     def set_ghost_state(self, obj, doc=None):
         # Look up the object state by coll_name and oid.
         if doc is None:
-            coll = self._jar._conn[obj._p_oid.database][obj._p_oid.collection]
+            coll = self._jar._get_collection(
+                obj._p_oid.database, obj._p_oid.collection)
             doc = coll.find_one({'_id': obj._p_oid.id})
             doc.pop('_id')
             doc.pop('_py_persistent_type', None)

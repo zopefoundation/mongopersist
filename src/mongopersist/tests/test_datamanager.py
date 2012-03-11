@@ -81,7 +81,34 @@ def doctest_Root():
     """
 
 def doctest_MongoDataManager_get_collection():
-    r"""MongoDataManager: get_collection(obj)
+    r"""MongoDataManager: get_collection(db_name, coll_name)
+
+    Get the collection given the DB and collection name.
+
+      >>> foo = Foo('1')
+      >>> foo_ref = dm.insert(foo)
+      >>> dm.reset()
+
+      >>> coll = dm.get_collection(
+      ...     DBNAME, 'mongopersist.tests.test_datamanager.Foo')
+
+    We are returning a collection wrapper instead, so that we can flush the
+    data before any method involving a query.
+
+      >>> coll
+      <mongopersist.datamanager.CollectionWrapper object at 0x19e47d0>
+      >>> coll.collection
+      Collection(Database(Connection('localhost', 27017), u'mongopersist_test'),
+                 u'mongopersist.tests.test_datamanager.Foo')
+
+    Let's now make a query:
+
+      >>> tuple(coll.find())
+      ({u'_id': ObjectId('4f5c1bf537a08e2ea6000000'), u'name': u'1'},)
+    """
+
+def doctest_MongoDataManager_get_collection_from_object():
+    r"""MongoDataManager: get_collection_from_object(obj)
 
     Get the collection for an object.
 
@@ -89,13 +116,17 @@ def doctest_MongoDataManager_get_collection():
       >>> foo_ref = dm.insert(foo)
       >>> dm.reset()
 
-      >>> coll = dm.get_collection(foo)
+      >>> coll = dm.get_collection_from_object(foo)
 
     We are returning a collection wrapper instead, so that we can flush the
     data before any method involving a query.
 
       >>> coll
       <mongopersist.datamanager.CollectionWrapper object at 0x19e47d0>
+
+      >>> coll.collection
+      Collection(Database(Connection('localhost', 27017), u'mongopersist_test'),
+                 u'mongopersist.tests.test_datamanager.Foo')
 
     Let's make sure that modifying attributes is done on the original
     collection:
@@ -115,18 +146,18 @@ def doctest_MongoDataManager_get_collection():
 
     If we do not use the wrapper, the change is not visible:
 
-      >>> tuple(dm._get_collection(foo_new).find())
+      >>> tuple(dm._get_collection_from_object(foo_new).find())
       ({u'_id': ObjectId('4f5c1bf537a08e2ea6000000'), u'name': u'1'},)
 
     But if we use the wrapper, the change gets flushed first:
 
-      >>> tuple(dm.get_collection(foo_new).find())
+      >>> tuple(dm.get_collection_from_object(foo_new).find())
       ({u'_id': ObjectId('4f5c1bf537a08e2ea6000000'), u'name': u'2'},)
 
     Of course, aborting the transaction gets us back to the original state:
 
       >>> dm.abort(transaction.get())
-      >>> tuple(dm._get_collection(foo_new).find())
+      >>> tuple(dm._get_collection_from_object(foo_new).find())
       ({u'_id': ObjectId('4f5c1bf537a08e2ea6000000'), u'name': u'1'},)
     """
 
@@ -287,7 +318,7 @@ def doctest_MongoDataManager_insert():
 
     But storing works as expected (flush is implicit before find):
 
-      >>> tuple(dm.get_collection(foo2).find())
+      >>> tuple(dm.get_collection_from_object(foo2).find())
       ({u'_id': ObjectId('4f5c443837a08e37bf000000'), u'name': u'foo'},
        {u'_id': ObjectId('4f5c443837a08e37bf000001'), u'name': u'Foo 2'})
     """
@@ -308,7 +339,7 @@ def doctest_MongoDataManager_remove():
 
     The object is removed from the collection immediately:
 
-      >>> tuple(dm._get_collection(foo_ref).find())
+      >>> tuple(dm._get_collection_from_object(foo_ref).find())
       ()
 
     Also, the object is added to the list of removed objects:
@@ -427,7 +458,7 @@ def doctest_MongoDataManager_abort():
       >>> foo2_ref = dm.insert(Foo('two'))
       >>> dm.reset()
 
-      >>> coll = dm._get_collection(Foo())
+      >>> coll = dm._get_collection_from_object(Foo())
       >>> tuple(coll.find({}))
       ({u'_id': ObjectId('4f5c114f37a08e2cac000000'), u'name': u'one'},
        {u'_id': ObjectId('4f5c114f37a08e2cac000001'), u'name': u'two'})

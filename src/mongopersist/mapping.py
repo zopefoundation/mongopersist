@@ -31,7 +31,7 @@ class MongoCollectionMapping(UserDict.DictMixin, object):
 
     def get_mongo_collection(self):
         db_name = self.__mongo_database__ or self._m_jar.default_database
-        return self._m_jar._conn[db_name][self.__mongo_collection__]
+        return self._m_jar.get_collection(db_name, self.__mongo_collection__)
 
     def __getitem__(self, key):
         filter = self.__mongo_filter__()

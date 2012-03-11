@@ -545,7 +545,7 @@ def doctest_MongoContainer_with_ZODB():
       >>> stephan.__parent__
       <mongopersist.zope.container.MongoContainer object at 0x7f6b6273b7d0>
 
-      >>> pprint(list(dm._conn[DBNAME]['person'].find()))
+      >>> pprint(list(dm._get_collection(DBNAME, 'person').find()))
       [{u'_id': ObjectId('4e7ed795e1382366a0000001'),
         u'key': u'stephan',
         u'name': u'Stephan',

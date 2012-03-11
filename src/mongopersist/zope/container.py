@@ -128,8 +128,7 @@ class MongoContainer(contained.Contained,
 
     def get_collection(self):
         db_name = self._m_database or self._m_jar.default_database
-        return CollectionWrapper(
-            self._m_jar._conn[db_name][self._m_collection], self._m_jar)
+        return self._m_jar.get_collection(db_name, self._m_collection)
 
     def _m_get_parent_key_value(self):
         if getattr(self, '_p_jar', None) is None:

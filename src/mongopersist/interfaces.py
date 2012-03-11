@@ -129,7 +129,10 @@ class IMongoDataManager(persistent.interfaces.IPersistentDataManager):
     detect_conflicts = zope.interface.Attribute(
         """A flag, when set it enables write conflict detection.""")
 
-    def get_collection(obj):
+    def get_collection(db_name, coll_name):
+        """Return the collection for the given DB and collection names."""
+
+    def get_collection_of_object(obj):
         """Return the collection for an object."""
 
     def reset():

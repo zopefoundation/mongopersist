@@ -99,7 +99,8 @@ class Root(UserDict.DictMixin):
     def __delitem__(self, key):
         doc = self._collection_inst.find_one(
             processSpec(self._collection_inst, {'name': key}))
-        coll = self._jar._conn[doc['ref'].database][doc['ref'].collection]
+        coll = self._jar._get_collection(
+            doc['ref'].database, doc['ref'].collection)
         coll.remove(doc['ref'].id)
         self._collection_inst.remove({'name': key})
 
@@ -140,9 +141,12 @@ class MongoDataManager(object):
         self.transaction_manager = transaction.manager
         self.root = Root(self, root_database, root_collection)
 
-    def _get_collection(self, obj):
-        db_name, coll_name = self._writer.get_collection_name(obj)
+    def _get_collection(self, db_name, coll_name):
         return self._conn[db_name][coll_name]
+
+    def _get_collection_from_object(self, obj):
+        db_name, coll_name = self._writer.get_collection_name(obj)
+        return self._get_collection(db_name, coll_name)
 
     def _check_conflicts(self):
         if not self.detect_conflicts:
@@ -154,7 +158,7 @@ class MongoDataManager(object):
             # cannot be a conflict.
             if obj._p_oid is None:
                 continue
-            coll = self._get_collection(obj)
+            coll = self._get_collection_from_object(obj)
             new_doc = coll.find_one(obj._p_oid.id, fields=('_py_serial',))
             if new_doc is None:
                 continue
@@ -175,8 +179,11 @@ class MongoDataManager(object):
             self._writer.store(obj)
             written.append(obj)
 
-    def get_collection(self, obj):
-        return CollectionWrapper(self._get_collection(obj), self)
+    def get_collection(self, db_name, coll_name):
+        return CollectionWrapper(self._get_collection(db_name, coll_name), self)
+
+    def get_collection_from_object(self, obj):
+        return CollectionWrapper(self._get_collection_from_object(obj), self)
 
     def dump(self, obj):
         return self._writer.store(obj)
@@ -221,7 +228,7 @@ class MongoDataManager(object):
         if obj._p_changed is None:
             self.setstate(obj)
         # Now we remove the object from Mongo.
-        coll = self._get_collection(obj)
+        coll = self._get_collection_from_object(obj)
         coll.remove({'_id': obj._p_oid.id})
         self._removed_objects.append(obj)
         # Just in case the object was modified before removal, let's remove it
@@ -258,16 +265,16 @@ class MongoDataManager(object):
         # Aborting the transaction requires three steps:
         # 1. Remove any inserted objects.
         for obj in self._inserted_objects:
-            coll = self._get_collection(obj)
+            coll = self._get_collection_from_object(obj)
             coll.remove({'_id': obj._p_oid.id})
         # 2. Re-insert any removed objects.
         for obj in self._removed_objects:
-            coll = self._get_collection(obj)
+            coll = self._get_collection_from_object(obj)
             coll.insert(self._original_states[obj._p_oid])
             del self._original_states[obj._p_oid]
         # 3. Reset any changed states.
         for db_ref, state in self._original_states.items():
-            coll = self._conn[db_ref.database][db_ref.collection]
+            coll = self._get_collection(db_ref.database, db_ref.collection)
             coll.update({'_id': db_ref.id}, state, True)
         self.reset()
 
