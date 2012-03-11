@@ -372,19 +372,23 @@ class ObjectReader(object):
             return sub_obj
         return state
 
-    def set_ghost_state(self, obj):
+    def set_ghost_state(self, obj, doc=None):
         # Look up the object state by coll_name and oid.
-        coll = self._jar._conn[obj._p_oid.database][obj._p_oid.collection]
-        doc = coll.find_one({'_id': obj._p_oid.id})
-        doc.pop('_id')
-        doc.pop('_py_persistent_type', None)
+        if doc is None:
+            coll = self._jar._conn[obj._p_oid.database][obj._p_oid.collection]
+            doc = coll.find_one({'_id': obj._p_oid.id})
+            doc.pop('_id')
+            doc.pop('_py_persistent_type', None)
         # Store the serial, if conflict detection is enabled.
         if self._jar.detect_conflicts:
             obj._p_serial = p64(doc.pop('_py_serial', 0))
         # Now convert the document to a proper Python state dict.
-        state = self.get_object(doc, obj)
+        state = dict(self.get_object(doc, obj))
+        # Now store the original state. It is assumed that the state dict is
+        # not modified later.
+        self._jar._original_states[obj._p_oid] = doc
         # Set the state.
-        obj.__setstate__(dict(state))
+        obj.__setstate__(state)
 
     def get_ghost(self, dbref):
         # If we can, we return the object from cache.

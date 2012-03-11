@@ -1,0 +1,37 @@
+=======================
+Optimistic Data Dumping
+=======================
+
+``mongopersist`` tried very hard to delay any state storage as long as
+possible, specifically the end of the transaction. And in some sense, that's
+nice, because it avoided multiple writes when multiple attributes are updated
+and minimized the times of inconsistent state. However, it also meant that we
+often had to commit transactions prematurely after modifications in order to
+make multi-object-result queries work. I call this approach pessimistic data
+dumping (PDD).
+
+Now ``mongopersist`` embraces change and dumps data frequently whenever it
+makes logically sense, for example before any multi-object-result query to the
+database. And since it keeps track of the original state, you can revert all
+changes when the transaction is aborted for some reason. A consequence of this
+approach is that the database might temporarily be in an inconsistent state or
+shows data that might be removed again. This is optimistic data dumping (ODD).
+
+The problem of PDD is that it is designed for the rare case that something
+goes wrong late in a transaction and that all changes have to be reverted,
+while ODD assumes success and fixes the situation if something went wrong. It
+is like the old saying: Asking for forgiveness is easier -- and in this case
+computationally cheaper and less complex -- than asking for permission.
+
+Also, while PDD seems originally closer to real transaction safety, it is
+not. Due to the lack of frequent dumping, a single logical transaction gets
+split into many small ones without the ability to properly retrieve the
+original state if soemthing goes wrong. So at the end there is no transaction
+safety or consistency guarantee.
+
+
+With ODD, we can ensure at least partial consistency by flushing after logical
+update units. The implementing flushing policy supports this, since one would
+not query for multi-object result sets if there would not be some notion of
+temporary consistency. And at the end, the greatest benefit is the ability to
+completely undo all changes of the transaction.

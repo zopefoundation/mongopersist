@@ -2,10 +2,61 @@
 CHANGES
 =======
 
-0.5.6 (unreleased)
+0.6.0 (unreleased)
 ------------------
 
-- ...
+- Switched to optimisitc data dumping, which approaches transactions by
+  dumping early and as the data comes. All changes are undone when the
+  transaction fails/aborts. See ``optimistic-data-dumping.txt`` for
+  details. Here are some of the new features:
+
+  * Data manager keeps track of all original docs before their objects are
+    modified, so any change can be done.
+
+  * Added an API to data manager (``DataManager.insert(obj)``) to insert an
+    object in the database.
+
+  * Added an API to data manager (``DataManager.remove(obj)``) to remove an
+    object from the database.
+
+  * Data can be flushed to Mongo (``DataManager.flush()``) at any point of the
+    transaction retaining the ability to completely undo all changes. Flushing
+    features the following characteristics:
+
+    + During a given transaction, we guarantee that the user will always receive
+      the same Python object. This requires that flush does not reset the object
+      cache.
+
+    + The ``_p_serial`` is increased by one. (Automatically done in object
+      writer.)
+
+    + The object is removed from the registered objects and the ``_p_changed``
+      flag is set to ``False``.
+
+    + Before flushing, potential conflicts are detected.
+
+  * Implemented a flushing policy: Changes are always flushed before any query
+    is made. A simple wrapper for the ``pymongo`` collection
+    (``CollectionWrapper``) ensures that flush is called before the correct
+    method calls. The new API method ``DataManager.get_collection(obj)``
+    allows one to quickly get a wrapped collection.
+
+- The ``MongoContainer`` class now removes objects from the database upon
+  container removal is ``_m_remove_documents`` is ``True``. The default is
+  ``True``.
+
+- Removed ``fields`` argument from the ``MongoContainer.find(...)`` and
+  ``MongoContainer.find_one(...)`` methods, since it was not used.
+
+- If a container has N items, it took N+1 queries to load the list of items
+  completely. This was due to one query returning all DBRefs and then using
+  one query to load the state for each. Now, the first query loads all full
+  states and uses an extension to ``DataManager.setstate(obj, doc=None)`` to
+  load the state of the object with the previously queried data.
+
+- Changed ``MongoContainer.get_collection()`` to return a
+  ``CollectionWrapper`` instance.
+
 
 0.5.5 (2012-03-09)
 ------------------

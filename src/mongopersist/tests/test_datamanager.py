@@ -80,6 +80,56 @@ def doctest_Root():
       []
     """
 
+def doctest_MongoDataManager_get_collection():
+    r"""MongoDataManager: get_collection(obj)
+
+    Get the collection for an object.
+
+      >>> foo = Foo('1')
+      >>> foo_ref = dm.insert(foo)
+      >>> dm.reset()
+
+      >>> coll = dm.get_collection(foo)
+
+    We are returning a collection wrapper instead, so that we can flush the
+    data before any method involving a query.
+
+      >>> coll
+      <mongopersist.datamanager.CollectionWrapper object at 0x19e47d0>
+
+    Let's make sure that modifying attributes is done on the original
+    collection:
+
+      >>> coll.foo = 1
+      >>> coll.collection.foo
+      1
+      >>> coll.foo
+      1
+      >>> del coll.foo
+
+    Let's now try the real functionality behind the wrapper. So we are in a
+    transaction and modify an object:
+
+      >>> foo_new = dm.load(foo_ref)
+      >>> foo_new.name = '2'
+
+    If we do not use the wrapper, the change is not visible:
+
+      >>> tuple(dm._get_collection(foo_new).find())
+      ({u'_id': ObjectId('4f5c1bf537a08e2ea6000000'), u'name': u'1'},)
+
+    But if we use the wrapper, the change gets flushed first:
+
+      >>> tuple(dm.get_collection(foo_new).find())
+      ({u'_id': ObjectId('4f5c1bf537a08e2ea6000000'), u'name': u'2'},)
+
+    Of course, aborting the transaction gets us back to the original state:
+
+      >>> dm.abort(transaction.get())
+      >>> tuple(dm._get_collection(foo_new).find())
+      ({u'_id': ObjectId('4f5c1bf537a08e2ea6000000'), u'name': u'1'},)
+    """
+
 def doctest_MongoDataManager_object_dump_load_reset():
     r"""MongoDataManager: dump(), load(), reset()
 
@@ -120,8 +170,179 @@ def doctest_MongoDataManager_object_dump_load_reset():
       >>> foo._p_oid = foo2._p_oid
     """
 
-def doctest_MongoDataManager_set_state():
-    r"""MongoDataManager: set_state()
+def doctest_MongoDataManager_flush():
+    r"""MongoDataManager: flush()
+
+    This method writes all registered objects to Mongo. It can be used at any
+    time during the transaction when a dump is necessary, but is also used at
+    the end of the transaction to dump all remaining objects.
+
+    We also want to test the effects of conflict detection:
+
+      >>> dm.detect_conflicts = True
+
+    Let's now add an object to the database and reset the manager like it is
+    done at the end of a transaction:
+
+      >>> foo = Foo('foo')
+      >>> foo_ref = dm.dump(foo)
+      >>> dm.reset()
+
+    Let's now load the object again and make a modification:
+
+      >>> foo_new = dm.load(foo._p_oid)
+      >>> foo_new.name = 'Foo'
+
+    The object is now registered with the data manager:
+
+      >>> dm._registered_objects
+      [<mongopersist.tests.test_datamanager.Foo object at 0x2f7b9b0>]
+      >>> foo_new._p_serial
+      '\x00\x00\x00\x00\x00\x00\x00\x01'
+
+    Let's now flush the registered objects:
+
+      >>> dm.flush()
+
+    There are several side effects that should be observed:
+
+    * During a given transaction, we guarantee that the user will always receive
+      the same Python object. This requires that flush does not reset the object
+      cache.
+
+        >>> id(dm.load(foo._p_oid)) == id(foo_new)
+        True
+
+    * The ``_p_serial`` is increased by one.
+
+        >>> foo_new._p_serial
+        '\x00\x00\x00\x00\x00\x00\x00\x02'
+
+    * The object is removed from the registered objects and the ``_p_changed``
+      flag is set to ``False``.
+
+        >>> dm._registered_objects
+        []
+        >>> foo_new._p_changed
+        False
+
+    * Before flushing, potential conflicts must be detected as it is done before
+      committing a transaction.
+
+        >>> foo_new._p_serial = '\x00\x00\x00\x00\x00\x00\x00\x01'
+        >>> foo_new.name = 'Foo'
+        >>> dm.flush()
+        Traceback (most recent call last):
+        ...
+        ConflictError: database conflict error
+            (oid DBRef('mongopersist.tests.test_datamanager.Foo',
+                       ObjectId('4f5bfcaf37a08e2849000000'),
+                       'mongopersist_test'),
+             class Foo, start serial 1, current serial 2)
+    """
+
+def doctest_MongoDataManager_insert():
+    r"""MongoDataManager: insert(obj)
+
+    This method inserts an object into the database.
+
+      >>> foo = Foo('foo')
+      >>> foo_ref = dm.insert(foo)
+
+    After insertion, the original is not changed:
+
+      >>> foo._p_changed
+      False
+
+    It is also added to the list of inserted objects:
+
+      >>> dm._inserted_objects
+      [<mongopersist.tests.test_datamanager.Foo object at 0x18d41b8>]
+
+    Let's make sure it is really in Mongo:
+
+      >>> dm.reset()
+      >>> foo_new = dm.load(foo_ref)
+      >>> foo_new
+      <mongopersist.tests.test_datamanager.Foo object at 0x27cade8>
+
+    Notice, that we cannot insert the object again:
+
+      >>> dm.insert(foo_new)
+      Traceback (most recent call last):
+      ...
+      ValueError: ('Object has already an OID.',
+                   <mongopersist.tests.test_datamanager.Foo object at 0x1fecde8>)
+
+    Finally, registering a new object will not trigger an insert, but only
+    schedule the object for writing. This is done, since sometimes objects are
+    registered when we only want to store a stub since we otherwise end up in
+    endless recursion loops.
+
+      >>> foo2 = Foo('Foo 2')
+      >>> dm.register(foo2)
+
+      >>> dm._registered_objects
+      [<mongopersist.tests.test_datamanager.Foo object at 0x3087b18>]
+
+    But storing works as expected (flush is implicit before find):
+
+      >>> tuple(dm.get_collection(foo2).find())
+      ({u'_id': ObjectId('4f5c443837a08e37bf000000'), u'name': u'foo'},
+       {u'_id': ObjectId('4f5c443837a08e37bf000001'), u'name': u'Foo 2'})
+    """
+
+def doctest_MongoDataManager_remove():
+    r"""MongoDataManager: remove(obj)
+
+    This method removes an object from the database.
+
+      >>> foo = Foo('foo')
+      >>> foo_ref = dm.insert(foo)
+      >>> dm.reset()
+
+    Let's now load the object and remove it.
+
+      >>> foo_new = dm.load(foo_ref)
+      >>> dm.remove(foo_new)
+
+    The object is removed from the collection immediately:
+
+      >>> tuple(dm._get_collection(foo_ref).find())
+      ()
+
+    Also, the object is added to the list of removed objects:
+
+      >>> dm._removed_objects
+      [<mongopersist.tests.test_datamanager.Foo object at 0x1693140>]
+
+    Note that you cannot remove objects that are not in the database:
+
+      >>> dm.remove(Foo('Foo 2'))
+      Traceback (most recent call last):
+      ValueError: ('Object does not have OID.',
+                   <mongopersist.tests.test_datamanager.Foo object at 0x1982ed8>)
+
+    There is an edge case, if the object is inserted and removed in the same
+    transaction:
+
+      >>> dm.reset()
+      >>> foo3 = Foo('Foo 3')
+      >>> foo3_ref = dm.insert(foo3)
+      >>> dm.remove(foo3)
+
+    In this case, the object removed from Mongo and from the inserted object
+    list and never added to the removed object list.
+
+      >>> dm._inserted_objects
+      []
+      >>> dm._removed_objects
+      []
+
+    """
+
+def doctest_MongoDataManager_setstate():
+    r"""MongoDataManager: setstate()
 
     This method loads and sets the state of an object and joins the
     transaction.
@@ -195,6 +416,49 @@ def doctest_MongoDataManager_abort():
       True
       >>> len(dm._registered_objects)
       0
+
+    Let's now create a more interesting case with a transaction that inserted,
+    removed and changed objects.
+
+    First let's create an initial state:
+
+      >>> dm.reset()
+      >>> foo_ref = dm.insert(Foo('one'))
+      >>> foo2_ref = dm.insert(Foo('two'))
+      >>> dm.reset()
+
+      >>> coll = dm._get_collection(Foo())
+      >>> tuple(coll.find({}))
+      ({u'_id': ObjectId('4f5c114f37a08e2cac000000'), u'name': u'one'},
+       {u'_id': ObjectId('4f5c114f37a08e2cac000001'), u'name': u'two'})
+
+    Now, in a second transaction we modify the state of objects in all three
+    ways:
+
+      >>> foo = dm.load(foo_ref)
+      >>> foo.name = '1'
+      >>> dm._registered_objects
+      [<mongopersist.tests.test_datamanager.Foo object at 0x187b1b8>]
+
+      >>> foo2 = dm.load(foo2_ref)
+      >>> dm.remove(foo2)
+      >>> dm._removed_objects
+      [<mongopersist.tests.test_datamanager.Foo object at 0x1e5c140>]
+
+      >>> foo3_ref = dm.insert(Foo('three'))
+
+      >>> dm.flush()
+      >>> tuple(coll.find({}))
+      ({u'_id': ObjectId('4f5c114f37a08e2cac000000'), u'name': u'1'},
+       {u'_id': ObjectId('4f5c114f37a08e2cac000002'), u'name': u'three'})
+
+    Let's now abort the transaction and everything should be back to what it
+    was before:
+
+      >>> dm.abort(transaction.get())
+      >>> tuple(coll.find({}))
+      ({u'_id': ObjectId('4f5c114f37a08e2cac000000'), u'name': u'one'},
+       {u'_id': ObjectId('4f5c114f37a08e2cac000001'), u'name': u'two'})
     """
 
 def doctest_MongoDataManager_commit():

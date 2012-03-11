@@ -126,6 +126,12 @@ class IMongoDataManager(persistent.interfaces.IPersistentDataManager):
     root = zope.interface.Attribute(
         """Get the root object, which is a mapping.""")
 
+    detect_conflicts = zope.interface.Attribute(
+        """A flag, when set it enables write conflict detection.""")
+
+    def get_collection(obj):
+        """Return the collection for an object."""
+
     def reset():
         """Reset the datamanager for the next transaction."""
 
@@ -136,6 +142,21 @@ class IMongoDataManager(persistent.interfaces.IPersistentDataManager):
         """Load the object from Mongo by using its DBRef.
 
         Note: The returned object is in the ghost state.
+        """
+
+    def flush():
+        """Flush all changes to Mongo."""
+
+    def insert(obj):
+        """Insert an object into Mongo.
+
+        The correct collection is determined by object type.
+        """
+
+    def remove(obj):
+        """Remove an object from Mongo.
+
+        The correct collection is determined by object type.
         """
 
 

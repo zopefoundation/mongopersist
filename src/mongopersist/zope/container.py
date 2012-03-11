@@ -22,7 +22,7 @@ from zope.container.interfaces import IContainer
 
 from mongopersist import interfaces, serialize
 from mongopersist.zope import interfaces as zinterfaces
-from mongopersist.datamanager import processSpec
+from mongopersist.datamanager import processSpec, CollectionWrapper
 
 class MongoContained(contained.Contained):
 
@@ -42,6 +42,7 @@ class MongoContained(contained.Contained):
 
 
 class SimpleMongoContainer(sample.SampleContainer, persistent.Persistent):
+    _m_remove_documents = True
 
     def __getstate__(self):
         state = super(SimpleMongoContainer, self).__getstate__()
@@ -81,12 +82,15 @@ class SimpleMongoContainer(sample.SampleContainer, persistent.Persistent):
     def values(self):
         return [v for k, v in self.items()]
 
-    def __setitem__(self, key, object):
-        super(SimpleMongoContainer, self).__setitem__(key, object)
+    def __setitem__(self, key, obj):
+        super(SimpleMongoContainer, self).__setitem__(key, obj)
         self._p_changed = True
 
     def __delitem__(self, key):
+        obj = self[key]
         super(SimpleMongoContainer, self).__delitem__(key)
+        if self._m_remove_documents:
+            self._p_jar.remove(obj)
         self._p_changed = True
 
 
@@ -98,6 +102,7 @@ class MongoContainer(contained.Contained,
     _m_collection = None
     _m_mapping_key = 'key'
     _m_parent_key = 'parent'
+    _m_remove_documents = True
 
     def __init__(self, collection=None, database=None,
                  mapping_key=None, parent_key=None):
@@ -109,16 +114,6 @@ class MongoContainer(contained.Contained,
             self._m_mapping_key = mapping_key
         if parent_key is not None:
             self._m_parent_key = parent_key
-
-    @property
-    def _added(self):
-        ann = self._m_jar.annotations.setdefault(self._p_oid or id(self), {})
-        return ann.setdefault('added', {})
-
-    @property
-    def _deleted(self):
-        ann = self._m_jar.annotations.setdefault(self._p_oid or id(self), {})
-        return ann.setdefault('deleted', {})
 
     @property
     def _m_jar(self):
@@ -133,7 +128,8 @@ class MongoContainer(contained.Contained,
 
     def get_collection(self):
         db_name = self._m_database or self._m_jar.default_database
-        return self._m_jar._conn[db_name][self._m_collection]
+        return CollectionWrapper(
+            self._m_jar._conn[db_name][self._m_collection], self._m_jar)
 
     def _m_get_parent_key_value(self):
         if getattr(self, '_p_jar', None) is None:
@@ -155,62 +151,56 @@ class MongoContainer(contained.Contained,
             filter[self._m_parent_key] = gs(self._m_get_parent_key_value())
         return filter
 
-    def __getitem__(self, key):
-        if key in self._added:
-            return self._added[key]
-        if key in self._deleted:
-            raise KeyError(key)
-        filter = self._m_get_items_filter()
-        filter[self._m_mapping_key] = key
-        coll = self.get_collection()
-        doc = coll.find_one(processSpec(coll, filter), fields=())
-        if doc is None:
-            raise KeyError(key)
+    def _load_one(self, doc):
+        # Create a DBRef object and then load the full state of the object.
         dbref = pymongo.dbref.DBRef(
             self._m_collection, doc['_id'],
             self._m_database or self._m_jar.default_database)
         obj = self._m_jar._reader.get_ghost(dbref)
-        obj._v_key = key
+        self._m_jar.setstate(obj, doc)
+        obj._v_key = doc[self._m_mapping_key]
         obj._v_parent = self
         return obj
 
+    def __getitem__(self, key):
+        filter = self._m_get_items_filter()
+        filter[self._m_mapping_key] = key
+        coll = self.get_collection()
+        doc = coll.find_one(processSpec(coll, filter))
+        if doc is None:
+            raise KeyError(key)
+        return self._load_one(doc)
 
     def _real_setitem(self, key, value):
         # This call by iteself caues the state to change _p_changed to True.
         setattr(value, self._m_mapping_key, key)
         if self._m_parent_key is not None:
             setattr(value, self._m_parent_key, self._m_get_parent_key_value())
-        self._m_jar.register(value)
-        # Temporarily store the added object, so it is immediately available
-        # via the API.
-        self._added[key] = value
-        self._deleted.pop(key, None)
+        self._m_jar.insert(value)
 
     def __setitem__(self, key, value):
         contained.setitem(self, self._real_setitem, key, value)
 
     def __delitem__(self, key):
-        # Deleting the object from the database is not our job. We simply
-        # remove it from the dictionary.
         value = self[key]
+        # First remove the parent and name from the object.
         if self._m_mapping_key is not None:
             delattr(value, self._m_mapping_key)
         if self._m_parent_key is not None:
             delattr(value, self._m_parent_key)
-        self._deleted[key] = value
-        self._added.pop(key, None)
+        # Let's now remove the object from the database.
+        if self._m_remove_documents:
+            self._m_jar.remove(value)
+        # Send the uncontained event.
         contained.uncontained(value, self, key)
 
     def keys(self):
         filter = self._m_get_items_filter()
         filter[self._m_mapping_key] = {'$ne': None}
         coll = self.get_collection()
-        keys = [
-            doc[self._m_mapping_key]
-            for doc in coll.find(processSpec(coll, filter))
-            if not doc[self._m_mapping_key] in self._deleted]
-        keys += self._added.keys()
-        return keys
+        return [doc[self._m_mapping_key]
+                for doc in coll.find(processSpec(coll, filter),
+                                     fields=(self._m_mapping_key,))]
 
     def raw_find(self, spec=None, *args, **kwargs):
         if spec is None:
@@ -219,18 +209,11 @@ class MongoContainer(contained.Contained,
         coll = self.get_collection()
         return coll.find(processSpec(coll, spec), *args, **kwargs)
 
-    def find(self, spec=None, fields=None, *args, **kwargs):
-        # If fields were not specified, we only request the oid and the key.
-        fields = tuple(fields or ())
-        fields += (self._m_mapping_key,)
-        result = self.raw_find(spec, fields, *args, **kwargs)
+    def find(self, spec=None, *args, **kwargs):
+        # Search for matching objects.
+        result = self.raw_find(spec, *args, **kwargs)
         for doc in result:
-            dbref = pymongo.dbref.DBRef(
-                self._m_collection, doc['_id'],
-                self._m_database or self._m_jar.default_database)
-            obj = self._m_jar._reader.get_ghost(dbref)
-            obj._v_key = doc[self._m_mapping_key]
-            obj._v_parent = self
+            obj = self._load_one(doc)
             yield obj
 
     def raw_find_one(self, spec_or_id=None, *args, **kwargs):
@@ -242,20 +225,11 @@ class MongoContainer(contained.Contained,
         coll = self.get_collection()
         return coll.find_one(processSpec(coll, spec_or_id), *args, **kwargs)
 
-    def find_one(self, spec_or_id=None, fields=None, *args, **kwargs):
-        # If fields were not specified, we only request the oid and the key.
-        fields = tuple(fields or ())
-        fields += (self._m_mapping_key,)
-        doc = self.raw_find_one(spec_or_id, fields, *args, **kwargs)
+    def find_one(self, spec_or_id=None, *args, **kwargs):
+        doc = self.raw_find_one(spec_or_id, *args, **kwargs)
         if doc is None:
             return None
-        dbref = pymongo.dbref.DBRef(
-            self._m_collection, doc['_id'],
-            self._m_database or self._m_jar.default_database)
-        obj = self._m_jar._reader.get_ghost(dbref)
-        obj._v_key = doc[self._m_mapping_key]
-        obj._v_parent = self
-        return obj
+        return self._load_one(doc)
 
 class AllItemsMongoContainer(MongoContainer):
     _m_parent_key = None

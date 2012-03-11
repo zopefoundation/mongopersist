@@ -138,6 +138,11 @@ def doctest_SimpleMongoContainer_basic():
       >>> transaction.commit()
       >>> dm.root['c'].keys()
       []
+
+    The object is also removed from Mongo:
+
+      >>> pprint(list(db['person'].find()))
+      []
     """
 
 
@@ -192,7 +197,7 @@ def doctest_MongoContainer_basic():
       >>> dm.root['c']['stephan'].__parent__
       <mongopersist.zope.container.MongoContainer object at 0x7fec50f86500>
       >>> dm.root['c']['stephan'].__name__
-      'stephan'
+      u'stephan'
 
     We get a usual key error, if an object does not exist:
 
@@ -536,7 +541,7 @@ def doctest_MongoContainer_with_ZODB():
 
       >>> stephan = root['app']['people']['stephan']
       >>> stephan.__name__
-      'stephan'
+      u'stephan'
       >>> stephan.__parent__
       <mongopersist.zope.container.MongoContainer object at 0x7f6b6273b7d0>
 

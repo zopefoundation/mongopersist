@@ -664,6 +664,19 @@ def doctest_ObjectReader_set_ghost_state():
       u'top'
       >>> gobj._p_serial
       '\x00\x00\x00\x00\x00\x00\x00\x01'
+
+    Note that the original state is stored in the data manager:
+
+      >>> gobj._p_jar._original_states
+      {DBRef('Top', ObjectId('4f5bf4e437a08e2614000001'), 'mongopersist_test'):
+         {u'name': u'top'}}
+
+    This state does not change, even when the object is modified:
+
+      >>> gobj.name = 'stop'
+      >>> gobj._p_jar._original_states[gobj._p_oid] != gobj.__getstate__()
+      True
+
     """
 
 
