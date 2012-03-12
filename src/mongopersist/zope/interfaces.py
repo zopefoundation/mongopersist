@@ -100,3 +100,10 @@ class IMongoContainer(zope.interface.Interface):
 
         See pymongo's documentation for details on *args and **kwargs.
         """
+
+    def add(value, key=None):
+        """Add an object without necessarily knowing the key of the object.
+
+        It is up to the implementation to determine a key, if none is passed
+        in. One approach would be to use the object's OID.
+        """

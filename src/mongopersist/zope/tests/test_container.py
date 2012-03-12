@@ -339,6 +339,26 @@ def doctest_MongoContainer_setitem_with_no_key():
       True
 """
 
+def doctest_MongoContainer_add():
+    """MongoContainer: add(value, key=None)
+
+    Sometimes we just do not want to be responsible to determine the name of
+    the object to be added. This method makes this optional. The default
+    implementation assigns the OID as name:
+
+      >>> transaction.commit()
+      >>> dm.root['people'] = container.MongoContainer('person')
+      >>> dm.root['people'].add(Person(u'Stephan'))
+
+    Let's now search and receive documents as result:
+
+      >>> sorted(dm.root['people'].keys())
+      [u'...']
+      >>> stephan = dm.root['people'].values()[0]
+      >>> stephan.__name__ == str(stephan._p_oid.id)
+      True
+"""
+
 def doctest_MongoContainer_find():
     """MongoContainer: find
 

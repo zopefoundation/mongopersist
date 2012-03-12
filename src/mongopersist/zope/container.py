@@ -187,6 +187,12 @@ class MongoContainer(contained.Contained,
         # We want to be as close as possible to using the Zope semantics.
         contained.setitem(self, self._real_setitem, key, value)
 
+    def add(self, value, key=None):
+        # We are already suporting ``None`` valued keys, which prompts the key
+        # to be the OID. But people felt that a more explicit interface would
+        # be better in this case.
+        self[key] = value
+
     def __delitem__(self, key):
         value = self[key]
         # First remove the parent and name from the object.
