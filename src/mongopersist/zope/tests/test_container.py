@@ -321,6 +321,24 @@ def doctest_MongoContainer_many_items():
       <Person Adam>
 """
 
+def doctest_MongoContainer_setitem_with_no_key():
+    """MongoContainer: __setitem__(None, obj)
+
+    Whenever an item is added with no key, the OID is used.
+
+      >>> transaction.commit()
+      >>> dm.root['people'] = container.MongoContainer('person')
+      >>> dm.root['people'][None] = Person(u'Stephan')
+
+    Let's now search and receive documents as result:
+
+      >>> sorted(dm.root['people'].keys())
+      [u'...']
+      >>> stephan = dm.root['people'].values()[0]
+      >>> stephan.__name__ == str(stephan._p_oid.id)
+      True
+"""
+
 def doctest_MongoContainer_find():
     """MongoContainer: find
 

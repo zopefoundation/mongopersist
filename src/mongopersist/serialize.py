@@ -293,7 +293,7 @@ class ObjectReader(object):
                         klass = self.simple_resolve(name_map_item['path'])
                         break
                 else:
-                    raise ImportError(path)
+                    raise ImportError(dbref)
             OID_CLASS_LRU[dbref.id] = klass
             return klass
 
@@ -379,8 +379,9 @@ class ObjectReader(object):
             coll = self._jar._get_collection(
                 obj._p_oid.database, obj._p_oid.collection)
             doc = coll.find_one({'_id': obj._p_oid.id})
-            doc.pop('_id')
-            doc.pop('_py_persistent_type', None)
+        # Remove unwanted attributes.
+        doc.pop('_id')
+        doc.pop('_py_persistent_type', None)
         # Store the serial, if conflict detection is enabled.
         if self._jar.detect_conflicts:
             obj._p_serial = p64(doc.pop('_py_serial', 0))

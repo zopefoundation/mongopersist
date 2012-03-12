@@ -46,6 +46,10 @@ CHANGES
   container removal is ``_m_remove_documents`` is ``True``. The default is
   ``True``.
 
+- When adding an item to ``MongoContainer`` and the key is ``None``, then the
+  OID is chosen as the key. Ids are perfect key, because they are guaranteed
+  to be unique within the collection.
+
 - Removed ``fields`` argument from the ``MongoContainer.find(...)`` and
   ``MongoContainer.find_one(...)`` methods, since it was not used.
 

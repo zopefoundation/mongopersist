@@ -175,9 +175,16 @@ class MongoContainer(contained.Contained,
         setattr(value, self._m_mapping_key, key)
         if self._m_parent_key is not None:
             setattr(value, self._m_parent_key, self._m_get_parent_key_value())
-        self._m_jar.insert(value)
 
     def __setitem__(self, key, value):
+        # Make sure the value is in the database, since we might want to use
+        # its oid.
+        if value._p_oid is None:
+            self._m_jar.insert(value)
+        # When the key is None, we use the object is as name.
+        if key is None:
+            key = unicode(value._p_oid.id)
+        # We want to be as close as possible to using the Zope semantics.
         contained.setitem(self, self._real_setitem, key, value)
 
     def __delitem__(self, key):
