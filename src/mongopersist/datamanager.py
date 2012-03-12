@@ -186,7 +186,10 @@ class MongoDataManager(object):
         return CollectionWrapper(self._get_collection_from_object(obj), self)
 
     def dump(self, obj):
-        return self._writer.store(obj)
+        res = self._writer.store(obj)
+        if obj in self._registered_objects:
+            obj._p_changed = False
+            self._registered_objects.remove(obj)
 
     def load(self, dbref):
         return self._reader.get_ghost(dbref)

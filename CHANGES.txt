@@ -50,6 +50,11 @@ CHANGES
   OID is chosen as the key. Ids are perfect key, because they are guaranteed
   to be unique within the collection.
 
+- Since people did not like the setitem with ``None`` key implementation, I
+  also added the ``MongoContainer.add(value, key=None)`` method, which makes
+  specifying the key optional. The default implementation is to use the OID,
+  if the key is ``None``.
+
 - Removed ``fields`` argument from the ``MongoContainer.find(...)`` and
   ``MongoContainer.find_one(...)`` methods, since it was not used.
 
