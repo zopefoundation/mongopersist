@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.6.0 (unreleased)
+0.6.0 (2012-03-12)
 ------------------
 
 - Switched to optimisitc data dumping, which approaches transactions by
@@ -41,6 +41,13 @@ CHANGES
     method calls. Two new API methods ``DataManager.get_collection(db_name,
     coll_name)`` and ``DataManager.get_collection_from_object(obj)``
     allows one to quickly get a wrapped collection.
+
+- Renamed ``processSpec()`` to ``process_spec()`` to adhere to package nameing
+  convention.
+
+- Created a ``ProcessSpecDecorator`` that is used in the ``CollectionWrapper``
+  class to process the specs of the ``find()``, ``find_one()`` and
+  ``find_and_modify()`` collection methods.
 
 - The ``MongoContainer`` class now removes objects from the database upon
   container removal is ``_m_remove_documents`` is ``True``. The default is
