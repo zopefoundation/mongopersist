@@ -27,7 +27,7 @@ def create_conflict_error(obj, new_doc):
         None, obj,
         (new_doc.get('_py_serial', 0), serialize.u64(obj._p_serial)))
 
-def processSpec(collection, spec):
+def process_spec(collection, spec):
     try:
         adapter = interfaces.IMongoSpecProcessor(None)
     except TypeError:
@@ -46,10 +46,32 @@ class FlushDecorator(object):
         self.datamanager.flush()
         return self.function(*args, **kwargs)
 
+class ProcessSpecDecorator(object):
+
+    def __init__(self, collection, function):
+        self.collection = collection
+        self.function = function
+
+    def __call__(self, *args, **kwargs):
+        if args:
+            args = (process_spec(self.collection, args[0]),) + args[1:]
+        # find()
+        if 'spec' in kwargs:
+            kwargs['spec'] = process_spec(self.collection, kwargs['spec'])
+        # find_one()
+        elif 'spec_or_id' in kwargs:
+            kwargs['spec_or_id'] = process_spec(
+                self.collection, kwargs['spec_or_id'])
+        # find_and_modify()
+        elif 'query' in kwargs:
+            kwargs['query'] = process_spec(self.collection, kwargs['query'])
+        return self.function(*args, **kwargs)
+
 class CollectionWrapper(object):
 
     QUERY_METHODS = ['group', 'map_reduce', 'inline_map_reduce', 'find_one',
-                     'find', 'count', 'find_and_modify']
+                     'find', 'find_and_modify']
+    PROCESS_SPEC_METHODS = ['find_and_modify', 'find_one', 'find']
 
     def __init__(self, collection, datamanager):
         self.__dict__['collection'] = collection
@@ -59,6 +81,8 @@ class CollectionWrapper(object):
         attr = getattr(self.collection, name)
         if name in self.QUERY_METHODS:
             attr = FlushDecorator(self._datamanager, attr)
+        if name in self.PROCESS_SPEC_METHODS:
+            attr = ProcessSpecDecorator(self.collection, attr)
         return attr
 
     def __setattr__(self, name, value):
@@ -80,26 +104,24 @@ class Root(UserDict.DictMixin):
         if collection is not None:
             self.collection = collection
         db = self._jar._conn[self.database]
-        self._collection_inst = db[self.collection]
+        self._collection_inst = CollectionWrapper(db[self.collection], jar)
 
     def __getitem__(self, key):
-        doc = self._collection_inst.find_one(
-            processSpec(self._collection_inst, {'name': key}))
+        doc = self._collection_inst.find_one({'name': key})
         if doc is None:
             raise KeyError(key)
         return self._jar.load(doc['ref'])
 
     def __setitem__(self, key, value):
-        dbref = self._jar.dump(value)
+        dbref = self._jar.insert(value)
         if self.get(key) is not None:
             del self[key]
         doc = {'ref': dbref, 'name': key}
         self._collection_inst.insert(doc)
 
     def __delitem__(self, key):
-        doc = self._collection_inst.find_one(
-            processSpec(self._collection_inst, {'name': key}))
-        coll = self._jar._get_collection(
+        doc = self._collection_inst.find_one({'name': key})
+        coll = self._jar.get_collection(
             doc['ref'].database, doc['ref'].collection)
         coll.remove(doc['ref'].id)
         self._collection_inst.remove({'name': key})
@@ -190,6 +212,7 @@ class MongoDataManager(object):
         if obj in self._registered_objects:
             obj._p_changed = False
             self._registered_objects.remove(obj)
+        return res
 
     def load(self, dbref):
         return self._reader.get_ghost(dbref)

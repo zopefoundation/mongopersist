@@ -16,7 +16,6 @@ import UserDict
 import pymongo
 
 from mongopersist import interfaces
-from mongopersist.datamanager import processSpec
 
 class MongoCollectionMapping(UserDict.DictMixin, object):
     __mongo_database__ = None
@@ -37,7 +36,7 @@ class MongoCollectionMapping(UserDict.DictMixin, object):
         filter = self.__mongo_filter__()
         filter[self.__mongo_mapping_key__] = key
         coll = self.get_mongo_collection()
-        doc = coll.find_one(processSpec(coll, filter))
+        doc = coll.find_one(filter)
         if doc is None:
             raise KeyError(key)
         db_name = self.__mongo_database__ or self._m_jar.default_database
@@ -64,4 +63,4 @@ class MongoCollectionMapping(UserDict.DictMixin, object):
         coll = self.get_mongo_collection()
         return [
             doc[self.__mongo_mapping_key__]
-            for doc in coll.find(processSpec(coll, filter))]
+            for doc in coll.find(filter)]

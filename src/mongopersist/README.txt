@@ -115,8 +115,9 @@ Let's now add an address for Stephan. Addresses are also persistent objects:
 MongoPersist supports a special attribute called ``_p_mongo_collection``,
 which allows you to specify a custom collection to use.
 
-  >>> dm.root['stephan'].address = Address('Maynard', '01754')
-  >>> dm.root['stephan'].address
+  >>> stephan = dm.root['stephan']
+  >>> stephan.address = Address('Maynard', '01754')
+  >>> stephan.address
   <Address Maynard (01754)>
 
 Note that the address is not immediately saved in the database:

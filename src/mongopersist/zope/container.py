@@ -22,7 +22,6 @@ from zope.container.interfaces import IContainer
 
 from mongopersist import interfaces, serialize
 from mongopersist.zope import interfaces as zinterfaces
-from mongopersist.datamanager import processSpec, CollectionWrapper
 
 class MongoContained(contained.Contained):
 
@@ -165,7 +164,7 @@ class MongoContainer(contained.Contained,
         filter = self._m_get_items_filter()
         filter[self._m_mapping_key] = key
         coll = self.get_collection()
-        doc = coll.find_one(processSpec(coll, filter))
+        doc = coll.find_one(filter)
         if doc is None:
             raise KeyError(key)
         return self._load_one(doc)
@@ -211,15 +210,14 @@ class MongoContainer(contained.Contained,
         filter[self._m_mapping_key] = {'$ne': None}
         coll = self.get_collection()
         return [doc[self._m_mapping_key]
-                for doc in coll.find(processSpec(coll, filter),
-                                     fields=(self._m_mapping_key,))]
+                for doc in coll.find(filter, fields=(self._m_mapping_key,))]
 
     def raw_find(self, spec=None, *args, **kwargs):
         if spec is None:
             spec  = {}
         spec.update(self._m_get_items_filter())
         coll = self.get_collection()
-        return coll.find(processSpec(coll, spec), *args, **kwargs)
+        return coll.find(spec, *args, **kwargs)
 
     def find(self, spec=None, *args, **kwargs):
         # Search for matching objects.
@@ -235,7 +233,7 @@ class MongoContainer(contained.Contained,
             spec_or_id = {'_id': spec_or_id}
         spec_or_id.update(self._m_get_items_filter())
         coll = self.get_collection()
-        return coll.find_one(processSpec(coll, spec_or_id), *args, **kwargs)
+        return coll.find_one(spec_or_id, *args, **kwargs)
 
     def find_one(self, spec_or_id=None, *args, **kwargs):
         doc = self.raw_find_one(spec_or_id, *args, **kwargs)

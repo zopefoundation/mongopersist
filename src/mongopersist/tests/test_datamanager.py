@@ -188,6 +188,22 @@ def doctest_MongoDataManager_object_dump_load_reset():
             ObjectId('4eb2eb7437a08e0156000000'),
             'mongopersist_test')
 
+    When the object is modified, ``dump()`` will remove it from the list of
+    registered objects.
+
+      >>> foo.name = 'Foo'
+      >>> foo._p_changed
+      True
+      >>> dm._registered_objects
+      [<mongopersist.tests.test_datamanager.Foo object at 0x2fe1f50>]
+
+      >>> foo_ref = dm.dump(foo)
+
+      >>> foo._p_changed
+      False
+      >>> dm._registered_objects
+      []
+
     Let's now reset the data manager, so we do not hit a cache while loading
     the object again:
 
@@ -641,17 +657,23 @@ def doctest_MongoDataManager_sortKey():
       ('MongoDataManager', 0)
     """
 
-def doctest_processSpec():
-    r"""processSpec(): General test
+def doctest_process_spec():
+    r"""process_spec(): General test
 
     A simple helper function that returns the spec itself if no
-    IMongoSpecProcessor adapter is registered.
+    ``IMongoSpecProcessor`` adapter is registered. If a processor is found it
+    is applied. The spec processor can be used for:
+
+    * Additional logging.
+
+    * Modifying the spec, for example providing additional parameters.
+
+    Let's now call the function:
 
       >>> from zope.testing.cleanup import CleanUp as PlacelessSetup
       >>> PlacelessSetup().setUp()
 
-
-      >>> datamanager.processSpec('a_collection', {'life': 42})
+      >>> datamanager.process_spec('a_collection', {'life': 42})
       {'life': 42}
 
     Now let's register an adapter
@@ -665,19 +687,103 @@ def doctest_processSpec():
 
       >>> import zope.interface
       >>> from zope.component import provideAdapter
-      >>> provideAdapter(Processor, (zope.interface.Interface,), interfaces.IMongoSpecProcessor)
+      >>> provideAdapter(
+      ...     Processor,
+      ...     (zope.interface.Interface,), interfaces.IMongoSpecProcessor)
 
-    And see what happens on processSpec:
+    And see what happens on calling ``process_spec()``:
 
-      >>> datamanager.processSpec('a_collection', {'life': 42})
+      >>> datamanager.process_spec('a_collection', {'life': 42})
       passed in: a_collection {'life': 42}
       {'life': 24}
 
     We get the processed spec in return.
 
-
       >>> PlacelessSetup().tearDown()
 
+    """
+
+def doctest_FlushDecorator_basic():
+    r"""class FlushDecorator: basic functionality
+
+    The FlushDecorator class can be used to ensure that data is flushed before
+    a given function is called. Let's create an object and modify it:
+
+      >>> foo = Foo('foo')
+      >>> foo_ref = dm.dump(foo)
+      >>> dm.reset()
+      >>> foo_new = dm.load(foo._p_oid)
+      >>> foo_new.name = 'Foo'
+
+    The database is not immediately updated:
+
+      >>> coll = conn[DBNAME]['mongopersist.tests.test_datamanager.Foo']
+      >>> list(coll.find())
+      [{u'_id': ObjectId('4e7ddf12e138237403000000'), u'name': u'foo'}]
+
+
+    But when I use the decorator, all outstanding changes are updated at
+    first:
+
+      >>> flush_find = datamanager.FlushDecorator(dm, coll.find)
+      >>> list(flush_find())
+      [{u'_id': ObjectId('4e7ddf12e138237403000000'), u'name': u'Foo'}]
+
+    """
+
+def doctest_ProcessSpecDecorator_basic():
+    r"""class ProcessSpecDecorator: basic
+
+    The ``ProcessSpecDecorator`` decorator processes the spec before passing
+    it to the function. Currently the following collection methods are
+    supported: ``find_one()``, ``find()``, ``find_and_modify``.
+
+    Now let's register an adapter
+
+      >>> from zope.testing.cleanup import CleanUp as PlacelessSetup
+      >>> PlacelessSetup().setUp()
+
+      >>> class Processor(object):
+      ...     def __init__(self, context):
+      ...         pass
+      ...     def process(self, collection, spec):
+      ...         print 'passed in:', spec
+      ...         return spec
+
+      >>> import zope.interface
+      >>> from zope.component import provideAdapter
+      >>> provideAdapter(
+      ...     Processor,
+      ...     (zope.interface.Interface,), interfaces.IMongoSpecProcessor)
+
+    Let's now create the decorator:
+
+      >>> coll = conn[DBNAME]['mongopersist.tests.test_datamanager.Foo']
+      >>> process_find = datamanager.ProcessSpecDecorator(coll, coll.find)
+      >>> list(process_find({'life': 42}))
+      passed in: {'life': 42}
+      []
+
+    Keyword arguments are also supported:
+
+      >>> process_find = datamanager.ProcessSpecDecorator(coll, coll.find)
+      >>> list(process_find(spec={'life': 42}))
+      passed in: {'life': 42}
+      []
+
+      >>> process_find_one = datamanager.ProcessSpecDecorator(
+      ...     coll, coll.find_one)
+      >>> process_find_one(spec_or_id={'life': 42})
+      passed in: {'life': 42}
+
+      >>> process_find_one = datamanager.ProcessSpecDecorator(
+      ...     coll, coll.find_one)
+      >>> process_find_one(query={'life': 42})
+      passed in: {'life': 42}
+
+    We get the processed spec in return.
+
+      >>> PlacelessSetup().tearDown()
     """
 
 def test_suite():
