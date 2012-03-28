@@ -14,12 +14,25 @@
 """Mongo Persistence Doc Tests"""
 import doctest
 
+from zope.exceptions import exceptionformatter
+
 from mongopersist import testing
+
+def setUp(test):
+    testing.setUp(test)
+    # silence this, otherwise half-baked objects raise exceptions
+    # on trying to __repr__ missing attributes
+    test.orig_DEBUG_EXCEPTION_FORMATTER = exceptionformatter.DEBUG_EXCEPTION_FORMATTER
+    exceptionformatter.DEBUG_EXCEPTION_FORMATTER = 0
+
+def tearDown(test):
+    testing.tearDown(test)
+    exceptionformatter.DEBUG_EXCEPTION_FORMATTER = test.orig_DEBUG_EXCEPTION_FORMATTER
 
 def test_suite():
     return doctest.DocFileSuite(
         '../README.txt',
-        setUp=testing.setUp, tearDown=testing.tearDown,
+        setUp=setUp, tearDown=tearDown,
         checker=testing.checker,
         optionflags=testing.OPTIONFLAGS
         )

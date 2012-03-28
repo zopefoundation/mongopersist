@@ -24,6 +24,7 @@ import zope.component
 import zope.interface
 import zope.lifecycleevent
 from pprint import pprint
+from zope.exceptions import exceptionformatter
 from zope.app.testing import placelesssetup
 from zope.container import contained, btree
 from zope.testing import module, renormalizing
@@ -622,11 +623,17 @@ def setUp(test):
         default_database=test.globs['DBNAME'],
         root_database=test.globs['DBNAME'])
 
+    # silence this, otherwise half-baked objects raise exceptions
+    # on trying to __repr__ missing attributes
+    test.orig_DEBUG_EXCEPTION_FORMATTER = exceptionformatter.DEBUG_EXCEPTION_FORMATTER
+    exceptionformatter.DEBUG_EXCEPTION_FORMATTER = 0
+
 def tearDown(test):
     placelesssetup.tearDown(test)
     module.tearDown(test)
     test.globs['conn'].disconnect()
     serialize.SERIALIZERS.__init__()
+    exceptionformatter.DEBUG_EXCEPTION_FORMATTER = test.orig_DEBUG_EXCEPTION_FORMATTER
 
 def test_suite():
     return doctest.DocTestSuite(
