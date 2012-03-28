@@ -45,6 +45,7 @@ setup (
         'setuptools',
         'zope.dottedname',
         'zope.interface',
+        'zope.exceptions >=3.7.1', # required for extract_stack
     ],
     include_package_data = True,
     zip_safe = False,

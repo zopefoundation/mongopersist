@@ -73,6 +73,7 @@ class ObjectWriter(object):
         self._jar = jar
 
     def get_collection_name(self, obj):
+        __traceback_info__ = obj
         db_name = getattr(obj, '_p_mongo_database', self._jar.default_database)
         try:
             coll_name = obj._p_mongo_collection
@@ -211,11 +212,13 @@ class ObjectWriter(object):
         return self.get_non_persistent_state(obj, seen)
 
     def store(self, obj, ref_only=False):
+        __traceback_info__ = (obj, ref_only)
+
         db_name, coll_name = self.get_collection_name(obj)
-        coll = self._jar._get_collection(db_name, coll_name)
+        coll = self._jar.get_collection(db_name, coll_name)
         if ref_only:
             # We only want to get OID quickly. Trying to reduce the full state
-            # might cause infinite recusrion loop. (Example: 2 new objects
+            # might cause infinite recursion loop. (Example: 2 new objects
             # reference each other.)
             doc = {}
             # Make sure that the object gets saved fully later.
@@ -255,6 +258,7 @@ class ObjectReader(object):
         return resolve(path)
 
     def resolve(self, dbref):
+        __traceback_info__ = dbref
         try:
             return OID_CLASS_LRU[dbref.id]
         except KeyError:
@@ -282,7 +286,7 @@ class ObjectReader(object):
             # Multiple object types are stored in the collection. We have to
             # look at the object to find out the type.
             obj_doc = self._jar\
-                ._get_collection(dbref.database, dbref.collection).find_one(
+                .get_collection(dbref.database, dbref.collection).find_one(
                     dbref.id, fields=('_py_persistent_type',))
             if '_py_persistent_type' in obj_doc:
                 klass = self.simple_resolve(obj_doc['_py_persistent_type'])
@@ -374,9 +378,10 @@ class ObjectReader(object):
         return state
 
     def set_ghost_state(self, obj, doc=None):
+        __traceback_info__ = (obj, doc)
         # Look up the object state by coll_name and oid.
         if doc is None:
-            coll = self._jar._get_collection(
+            coll = self._jar.get_collection(
                 obj._p_oid.database, obj._p_oid.collection)
             doc = coll.find_one({'_id': obj._p_oid.id})
         # Remove unwanted attributes.

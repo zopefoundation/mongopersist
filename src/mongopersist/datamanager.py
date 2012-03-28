@@ -14,13 +14,19 @@
 """Mongo Persistent Data Manager"""
 from __future__ import absolute_import
 import UserDict
+import logging
 import persistent
 import pymongo
 import pymongo.dbref
 import transaction
+import traceback
+import sys
 import zope.interface
 
+from zope.exceptions import exceptionformatter
 from mongopersist import interfaces, serialize
+
+COLLECTION_LOG = logging.getLogger('mongopersist.collection')
 
 def create_conflict_error(obj, new_doc):
     return interfaces.ConflictError(
@@ -67,8 +73,39 @@ class ProcessSpecDecorator(object):
             kwargs['query'] = process_spec(self.collection, kwargs['query'])
         return self.function(*args, **kwargs)
 
+class LoggingDecorator(object):
+
+    # these are here to be easily patched
+    ADDTB = True
+    TB_LIMIT = 10 # 10 should be sufficient to figure
+
+    def __init__(self, collection, function):
+        self.collection = collection
+        self.function = function
+
+    def __call__(self, *args, **kwargs):
+        if self.ADDTB:
+            try:
+                raise ValueError('boom')
+            except:
+                # we need here exceptionformatter, otherwise __traceback_info__
+                # is not added
+                tb = ''.join(exceptionformatter.extract_stack(
+                    sys.exc_info()[2].tb_frame.f_back, limit=self.TB_LIMIT))
+        else:
+            tb = '<omitted>'
+
+        COLLECTION_LOG.debug(
+            "collection: %s.%s %s,\n args:%r,\n kwargs:%r, \n tb:\n%s",
+            self.collection.database.name, self.collection.name,
+            self.function.__name__, args, kwargs, tb)
+
+        return self.function(*args, **kwargs)
+
 class CollectionWrapper(object):
 
+    LOGGED_METHODS = ['insert', 'update', 'remove', 'save',
+                      'find_and_modify', 'find_one', 'find', 'count']
     QUERY_METHODS = ['group', 'map_reduce', 'inline_map_reduce', 'find_one',
                      'find', 'find_and_modify']
     PROCESS_SPEC_METHODS = ['find_and_modify', 'find_one', 'find']
@@ -79,6 +116,8 @@ class CollectionWrapper(object):
 
     def __getattr__(self, name):
         attr = getattr(self.collection, name)
+        if name in self.LOGGED_METHODS:
+            attr = LoggingDecorator(self.collection, attr)
         if name in self.QUERY_METHODS:
             attr = FlushDecorator(self._datamanager, attr)
         if name in self.PROCESS_SPEC_METHODS:
@@ -254,7 +293,7 @@ class MongoDataManager(object):
         if obj._p_changed is None:
             self.setstate(obj)
         # Now we remove the object from Mongo.
-        coll = self._get_collection_from_object(obj)
+        coll = self.get_collection_from_object(obj)
         coll.remove({'_id': obj._p_oid.id})
         self._removed_objects.append(obj)
         # Just in case the object was modified before removal, let's remove it
@@ -291,16 +330,16 @@ class MongoDataManager(object):
         # Aborting the transaction requires three steps:
         # 1. Remove any inserted objects.
         for obj in self._inserted_objects:
-            coll = self._get_collection_from_object(obj)
+            coll = self.get_collection_from_object(obj)
             coll.remove({'_id': obj._p_oid.id})
         # 2. Re-insert any removed objects.
         for obj in self._removed_objects:
-            coll = self._get_collection_from_object(obj)
+            coll = self.get_collection_from_object(obj)
             coll.insert(self._original_states[obj._p_oid])
             del self._original_states[obj._p_oid]
         # 3. Reset any changed states.
         for db_ref, state in self._original_states.items():
-            coll = self._get_collection(db_ref.database, db_ref.collection)
+            coll = self.get_collection(db_ref.database, db_ref.collection)
             coll.update({'_id': db_ref.id}, state, True)
         self.reset()
 
