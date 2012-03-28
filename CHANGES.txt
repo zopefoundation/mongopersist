@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.6.1 (unreleased)
+0.6.1 (2012-03-28)
 ------------------
 
 - Added quite detailed debug logging around collection methods
