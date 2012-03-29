@@ -32,11 +32,11 @@ def doctest_create_conflict_error():
     Simple helper function to create a conflict error.
 
      >>> foo = Foo()
-     >>> foo._p_serial = '\x00\x00\x00\x00\x00\x00\x00\x01'
 
-     >>> datamanager.create_conflict_error(foo, {'_py_serial': 3})
+     >>> datamanager.create_conflict_error(
+     ...     foo, {'_py_serial': 1}, {'_py_serial': 2}, {'_py_serial': 3})
      ConflictError: database conflict error
-                    (oid None, class Foo, start serial 1, current serial 3)
+         (oid None, class Foo, orig serial 1, cur serial 2, new serial 3)
     """
 
 def doctest_Root():
@@ -282,9 +282,10 @@ def doctest_MongoDataManager_flush():
         ...
         ConflictError: database conflict error
             (oid DBRef('mongopersist.tests.test_datamanager.Foo',
-                       ObjectId('4f5bfcaf37a08e2849000000'),
+                       ObjectId('4e7ddf12e138237403000000'),
                        'mongopersist_test'),
-             class Foo, start serial 1, current serial 2)
+             class Foo,
+             orig serial 1, cur serial 2, new serial 2)
     """
 
 def doctest_MongoDataManager_insert():

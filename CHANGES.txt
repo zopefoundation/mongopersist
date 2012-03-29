@@ -5,6 +5,10 @@ CHANGES
 0.7.0 (2012-03-??)
 ------------------
 
+- Feature: ``ConflictError`` has now a much more meaningful API. Instead of
+  just referencing the object and different serials, it now actual has the
+  original, current and new state documents.
+
 - Feature: Conflicts are now detected while aborting a transaction. The
   implemented policy will not reset the document state, if a conflict is
   detected.

@@ -31,10 +31,8 @@ COLLECTION_LOG = logging.getLogger('mongopersist.collection')
 
 LOG = logging.getLogger(__name__)
 
-def create_conflict_error(obj, new_doc):
-    return interfaces.ConflictError(
-        None, obj,
-        (new_doc.get('_py_serial', 0), serialize.u64(obj._p_serial)))
+def create_conflict_error(obj, orig_doc, cur_doc, new_doc):
+    return interfaces.ConflictError(None, obj, orig_doc, cur_doc, new_doc)
 
 def process_spec(collection, spec):
     try:
@@ -224,7 +222,10 @@ class MongoDataManager(object):
             return None if can_raise else False
         if new_doc.get('_py_serial', 0) != serialize.u64(obj._p_serial):
             if can_raise:
-                raise self.conflict_error_factory(obj, new_doc)
+                orig_doc = self._original_states.get(obj._p_oid)
+                cur_doc = coll.find_one(obj._p_oid.id)
+                raise self.conflict_error_factory(
+                    obj, orig_doc, cur_doc, new_doc)
             else:
                 return True
         return None if can_raise else False

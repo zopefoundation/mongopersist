@@ -27,25 +27,33 @@ MONGO_NATIVE_TYPES = (
 
 class ConflictError(transaction.interfaces.TransientError):
 
-    def __init__(self, message=None, object=None, serials=None):
+    def __init__(self, message=None, object=None,
+                 orig_state=None, cur_state=None, new_state=None):
         self.message = message or "database conflict error"
         self.object = object
-        self.serials = serials
+        self.orig_state = orig_state
+        self.cur_state = cur_state
+        self.new_state = new_state
+
+    @property
+    def orig_serial(self):
+        return self.orig_state.get('_py_serial') if self.orig_state else None
+
+    @property
+    def cur_serial(self):
+        return self.cur_state.get('_py_serial') if self.cur_state else None
 
     @property
     def new_serial(self):
-        return self.serials[0]
-
-    @property
-    def old_serial(self):
-        return self.serials[1]
+        return self.new_state.get('_py_serial') if self.new_state else None
 
     def __str__(self):
         extras = [
             'oid %s' %self.object._p_oid,
             'class %s' %self.object.__class__.__name__,
-            'start serial %s' %self.old_serial,
-            'current serial %s' %self.new_serial]
+            'orig serial %s' %self.orig_serial,
+            'cur serial %s' %self.cur_serial,
+            'new serial %s' %self.new_serial]
         return "%s (%s)" % (self.message, ", ".join(extras))
 
     def __repr__(self):

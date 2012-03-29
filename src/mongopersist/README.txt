@@ -592,6 +592,10 @@ Now our changing transaction tries to commit:
   Traceback (most recent call last):
   ...
   ConflictError: database conflict error
-      (oid ..., class Person, start serial 2, current serial 3)
+      (oid DBRef(u'__main__.Person',
+                 ObjectId('4e7ddf12e138237403000000'),
+                 u'mongopersist_test'),
+       class Person,
+       orig serial 2, cur serial 3, new serial 3)
 
   >>> transaction.abort()
