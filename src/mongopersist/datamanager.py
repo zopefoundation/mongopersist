@@ -186,6 +186,7 @@ class MongoDataManager(object):
         self._registered_objects = []
         self._loaded_objects = []
         self._inserted_objects = []
+        self._modified_objects = []
         self._removed_objects = []
         self._original_states = {}
         self._needs_to_join = True
@@ -325,6 +326,8 @@ class MongoDataManager(object):
 
         if obj is not None and obj not in self._registered_objects:
             self._registered_objects.append(obj)
+        if obj is not None and obj not in self._modified_objects:
+            self._modified_objects.append(obj)
 
     def abort(self, transaction):
         # Aborting the transaction requires three steps:
@@ -338,8 +341,18 @@ class MongoDataManager(object):
             coll.insert(self._original_states[obj._p_oid])
             del self._original_states[obj._p_oid]
         # 3. Reset any changed states.
-        for db_ref, state in self._original_states.items():
+        for obj in self._modified_objects:
+            db_ref = obj._p_oid
+            state = self._original_states.get(db_ref)
+            if state is None:
+                # This should not happen in a fully running environment, but
+                # the tests abort transactions often without having loaded
+                # objects through proper channels.
+                continue
             coll = self.get_collection(db_ref.database, db_ref.collection)
+            # XXX: There should be a check here whether the state has been
+            # modified in the mean time by another transaction. Then a policy
+            # needs to decide what to do.
             coll.update({'_id': db_ref.id}, state, True)
         self.reset()
 

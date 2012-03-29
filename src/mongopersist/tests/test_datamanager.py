@@ -14,7 +14,6 @@
 """Mongo  Tests"""
 import doctest
 import persistent
-import pprint
 import transaction
 from pymongo import dbref, objectid
 
@@ -508,72 +507,78 @@ def doctest_MongoDataManager_abort():
        {u'_id': ObjectId('4f5c114f37a08e2cac000001'), u'name': u'two'})
     """
 
-def doctest_MongoDataManager_commit():
-    r"""MongoDataManager: commit()
+def doctest_MongoDataManager_abort_modified_only():
+    r"""MongoDataManager: abort(): Only reset changed objects.
 
-    Contrary to what the name suggests, this is the commit called during the
-    first phase of a two-phase commit. Thus, for all practically purposes,
-    this method merely checks whether the commit would potentially fail.
+    We want to make sure that we only reset modified objects, not all objects
+    that have been loaded. The ratio from reads to writes is very high, so
+    unexpected behavior with other transactions is decreased by that ratio.
 
-    This means, if conflict detection is disabled, this method does nothing.
-
-      >>> dm.detect_conflicts
-      False
-      >>> dm.commit(transaction.get())
-
-    Let's now turn on conflict detection:
-
-      >>> dm.detect_conflicts = True
-
-    For new objects (not having an oid), it always passes:
+    First let's create an initial state:
 
       >>> dm.reset()
-      >>> dm._registered_objects = [Foo()]
-      >>> dm.commit(transaction.get())
-
-    If the object has an oid, but is not found in the DB, we also just pass,
-    because the object will be inserted.
-
-      >>> foo = Foo()
-      >>> foo._p_oid =  dbref.DBRef(
-      ...     'mongopersist.tests.test_datamanager.Foo',
-      ...     objectid.ObjectId('4eb2eb7437a08e0156000000'),
-      ...     'mongopersist_test')
-
+      >>> foo1_ref = dm.insert(Foo('one'))
+      >>> foo2_ref = dm.insert(Foo('two'))
+      >>> foo3_ref = dm.insert(Foo('three'))
       >>> dm.reset()
-      >>> dm._registered_objects = [foo]
-      >>> dm.commit(transaction.get())
 
-    Let's now store an object and make sure it does not conflict:
+      >>> coll = dm._get_collection_from_object(Foo())
+      >>> tuple(coll.find({}))
+      ({u'_id': ObjectId('4f5c114f37a08e2cac000000'), u'name': u'one'},
+       {u'_id': ObjectId('4f5c114f37a08e2cac000001'), u'name': u'two'},
+       {u'_id': ObjectId('4f5c114f37a08e2cac000002'), u'name': u'three'})
 
-      >>> foo = Foo()
-      >>> ref = dm.dump(foo)
-      >>> ref
-      DBRef('mongopersist.tests.test_datamanager.Foo',
-            ObjectId('4eb3468037a08e1b74000000'),
-            'mongopersist_test')
+    1. Transaction A loads all objects:
 
-      >>> dm.reset()
-      >>> dm._registered_objects = [foo]
-      >>> dm.commit(transaction.get())
+        >>> foo1_A = dm.load(foo1_ref)
+        >>> foo1_A.name
+        u'one'
+        >>> foo2_A = dm.load(foo2_ref)
+        >>> foo2_A.name
+        u'two'
+        >>> foo3_A = dm.load(foo3_ref)
+        >>> foo3_A.name
+        u'three'
 
-    Next, let's cause a conflict byt simulating a conflicting transaction:
+        >>> sorted([ref.id for ref in dm._original_states.keys()])
+        [ObjectId('4f746d0b37a08e1013000000'),
+         ObjectId('4f746d0b37a08e1013000001'),
+         ObjectId('4f746d0b37a08e1013000002')]
 
-      >>> dm.reset()
-      >>> foo2 = dm.load(ref)
-      >>> foo2.name = 'foo2'
-      >>> transaction.commit()
+    2. Transaction B comes along and modifies Foo 3's data and commits:
 
-      >>> dm.reset()
-      >>> dm._registered_objects = [foo]
-      >>> dm.commit(transaction.get())
-      Traceback (most recent call last):
-      ...
-      ConflictError: database conflict error
-          (oid DBRef('mongopersist.tests.test_datamanager.Foo',
-                     ObjectId('4eb3499637a08e1c5a000000'),
-                     'mongopersist_test'),
-           class Foo, start serial 1, current serial 2)
+        >>> dm_B = datamanager.MongoDataManager(
+        ...     conn, default_database=DBNAME, root_database=DBNAME)
+
+        >>> foo3_B = dm_B.load(foo3_ref)
+        >>> foo3_B.name = '3'
+        >>> dm_B.tpc_finish(None)
+
+        >>> tuple(coll.find({}))
+        ({u'_id': ObjectId('4f5c114f37a08e2cac000000'), u'name': u'one'},
+         {u'_id': ObjectId('4f5c114f37a08e2cac000001'), u'name': u'two'},
+         {u'_id': ObjectId('4f5c114f37a08e2cac000002'), u'name': u'3'})
+
+    3. Transaction A modifies Foo 1 and the data is flushed:
+
+        >>> foo1_A.name = '1'
+        >>> dm.flush()
+
+        >>> tuple(coll.find({}))
+        ({u'_id': ObjectId('4f5c114f37a08e2cac000000'), u'name': u'1'},
+         {u'_id': ObjectId('4f5c114f37a08e2cac000001'), u'name': u'two'},
+         {u'_id': ObjectId('4f5c114f37a08e2cac000002'), u'name': u'3'})
+
+    4. If transcation A is later aborted, only objects modified within the
+       transaction get reset to their original state (and not all loaded ones:
+
+       >>> dm.abort(None)
+
+        >>> tuple(coll.find({}))
+        ({u'_id': ObjectId('4f5c114f37a08e2cac000000'), u'name': u'one'},
+         {u'_id': ObjectId('4f5c114f37a08e2cac000001'), u'name': u'two'},
+         {u'_id': ObjectId('4f5c114f37a08e2cac000002'), u'name': u'3'})
+
     """
 
 def doctest_MongoDataManager_tpc_begin():

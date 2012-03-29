@@ -2,22 +2,25 @@
 CHANGES
 =======
 
-0.6.2 (unreleased)
+0.7.0 (2012-03-??)
 ------------------
 
-- Nothing changed yet.
+- Bug: When a transaction was aborted, the states of all *loaded* objects were
+  reset. Now, only *modified* object states are reset. This should drastically
+  lower problems (by the ratio of read over modified objects) due to lack of
+  full MVCC.
 
 
 0.6.1 (2012-03-28)
 ------------------
 
-- Added quite detailed debug logging around collection methods
+- Feature: Added quite detailed debug logging around collection methods
 
 0.6.0 (2012-03-12)
 ------------------
 
-- Switched to optimisitc data dumping, which approaches transactions by
-  dumping early and as the data comes. All changes are undone when the
+- Feature: Switched to optimisitc data dumping, which approaches transactions
+  by dumping early and as the data comes. All changes are undone when the
   transaction fails/aborts. See ``optimistic-data-dumping.txt`` for
   details. Here are some of the new features:
 
@@ -53,36 +56,36 @@ CHANGES
     coll_name)`` and ``DataManager.get_collection_from_object(obj)``
     allows one to quickly get a wrapped collection.
 
-- Renamed ``processSpec()`` to ``process_spec()`` to adhere to package nameing
-  convention.
+- Feature: Renamed ``processSpec()`` to ``process_spec()`` to adhere to
+  package nameing convention.
 
-- Created a ``ProcessSpecDecorator`` that is used in the ``CollectionWrapper``
-  class to process the specs of the ``find()``, ``find_one()`` and
-  ``find_and_modify()`` collection methods.
+- Feature: Created a ``ProcessSpecDecorator`` that is used in the
+  ``CollectionWrapper`` class to process the specs of the ``find()``,
+  ``find_one()`` and ``find_and_modify()`` collection methods.
 
-- The ``MongoContainer`` class now removes objects from the database upon
-  container removal is ``_m_remove_documents`` is ``True``. The default is
-  ``True``.
+- Feature: The ``MongoContainer`` class now removes objects from the database
+  upon container removal is ``_m_remove_documents`` is ``True``. The default
+  is ``True``.
 
-- When adding an item to ``MongoContainer`` and the key is ``None``, then the
-  OID is chosen as the key. Ids are perfect key, because they are guaranteed
-  to be unique within the collection.
+- Feature: When adding an item to ``MongoContainer`` and the key is ``None``,
+  then the OID is chosen as the key. Ids are perfect keys, because they are
+  guaranteed to be unique within the collection.
 
-- Since people did not like the setitem with ``None`` key implementation, I
-  also added the ``MongoContainer.add(value, key=None)`` method, which makes
-  specifying the key optional. The default implementation is to use the OID,
-  if the key is ``None``.
+- Feature: Since people did not like the setitem with ``None`` key
+  implementation, I also added the ``MongoContainer.add(value, key=None)``
+  method, which makes specifying the key optional. The default implementation
+  is to use the OID, if the key is ``None``.
 
-- Removed ``fields`` argument from the ``MongoContainer.find(...)`` and
-  ``MongoContainer.find_one(...)`` methods, since it was not used.
+- Feature: Removed ``fields`` argument from the ``MongoContainer.find(...)``
+  and ``MongoContainer.find_one(...)`` methods, since it was not used.
 
-- If a container has N items, it took N+1 queries to load the list of items
-  completely. This was due to one query returning all DBRefs and then using
-  one query to load the state for each. Now, the first query loads all full
-  states and uses an extension to ``DataManager.setstate(obj, doc=None)`` to
-  load the state of the object with the previously queried data.
+- Feature: If a container has N items, it took N+1 queries to load the list of
+  items completely. This was due to one query returning all DBRefs and then
+  using one query to load the state for each. Now, the first query loads all
+  full states and uses an extension to ``DataManager.setstate(obj, doc=None)``
+  to load the state of the object with the previously queried data.
 
-- Changed ``MongoContainer.get_collection()`` to return a
+- Feature: Changed ``MongoContainer.get_collection()`` to return a
   ``CollectionWrapper`` instance.
 
 
