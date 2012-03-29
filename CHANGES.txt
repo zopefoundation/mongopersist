@@ -5,6 +5,28 @@ CHANGES
 0.7.0 (2012-03-??)
 ------------------
 
+- Feature: A new ``IConflictHandler`` interface now controls all aspects of
+  conflict resolution. The following implementations are provided:
+
+  * ``NoCheckConflictHandler``: This handler does nothing and when used, the
+    system behaves as before when the ``detect_conflicts`` flag was set to
+    ``False``.
+
+  * ``SimpleSerialConflictHandler``: This handler uses serial numbers on each
+    document to keep track of versions and then to detect conflicts. When a
+    conflict is detected, a ``ConflictError`` is raised. This handler is
+    identical to ``detect_conflicts`` being set to ``True``.
+
+  * ``ResolvingSerialConflictHandler``: Another serial handler, but it has the
+    ability to resolve a conflict. For this to happen, a persistent object
+    must implement ``_p_resolveConflict(orig_state, cur_state, new_state)``,
+    which returns the new, merged state.
+
+  As a result, the ``detect_conflicts`` flag of the data manager was removed
+  and replaced with the ``conflict_handler`` attribute. One can pass in the
+  ``conflict_handler_factory`` to the data manager constructor. The factory
+  needs to expect on argument, the data manager.
+
 - Feature: ``ConflictError`` has now a much more meaningful API. Instead of
   just referencing the object and different serials, it now actual has the
   original, current and new state documents.

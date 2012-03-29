@@ -14,7 +14,6 @@
 """Object Serialization for Mongo/BSON"""
 from __future__ import absolute_import
 import copy_reg
-import struct
 
 import lru
 import persistent.interfaces
@@ -31,14 +30,6 @@ from mongopersist import interfaces
 
 SERIALIZERS = []
 OID_CLASS_LRU = lru.LRUCache(20000)
-
-def p64(v):
-    """Pack an integer or long into a 8-byte string"""
-    return struct.pack(">Q", v)
-
-def u64(v):
-    """Unpack an 8-byte string into a 64-bit long integer."""
-    return struct.unpack(">Q", v)[0]
 
 def get_dotted_name(obj):
     return obj.__module__+'.'+obj.__name__
@@ -211,6 +202,20 @@ class ObjectWriter(object):
 
         return self.get_non_persistent_state(obj, seen)
 
+    def get_full_state(self, obj):
+        doc = self.get_state(obj.__getstate__())
+        # Add a persistent type info, if necessary.
+        if getattr(obj, '_p_mongo_store_type', False):
+            doc['_py_persistent_type'] = get_dotted_name(obj.__class__)
+        # A hook, so that the conflict handler can modify the state document
+        # if needed.
+        self._jar.conflict_handler.on_before_store(obj, doc)
+        # Add the object id.
+        if obj._p_oid is not None:
+            doc['_id'] = obj._p_oid.id
+        # Return the full state document
+        return doc
+
     def store(self, obj, ref_only=False):
         __traceback_info__ = (obj, ref_only)
 
@@ -229,11 +234,10 @@ class ObjectWriter(object):
             doc = self.get_state(obj.__getstate__())
         if getattr(obj, '_p_mongo_store_type', False):
             doc['_py_persistent_type'] = get_dotted_name(obj.__class__)
-        # If conflict detection is turned on, store a serial number for the
-        # document.
-        if self._jar.detect_conflicts:
-            doc['_py_serial'] = u64(getattr(obj, '_p_serial', 0)) + 1
-            obj._p_serial = p64(doc['_py_serial'])
+
+        # A hook, so that the conflict handler can modify the state document
+        # if needed.
+        self._jar.conflict_handler.on_before_store(obj, doc)
 
         if obj._p_oid is None:
             doc_id = coll.insert(doc)
@@ -245,6 +249,11 @@ class ObjectWriter(object):
         else:
             doc['_id'] = obj._p_oid.id
             coll.save(doc)
+
+        # A hook, so that the conflict handler can modify the object or state
+        # document after an object was stored.
+        self._jar.conflict_handler.on_after_store(obj, doc)
+
         return obj._p_oid
 
 
@@ -389,14 +398,17 @@ class ObjectReader(object):
         # Remove unwanted attributes.
         state_doc.pop('_id')
         state_doc.pop('_py_persistent_type', None)
-        # Store the serial, if conflict detection is enabled.
-        if self._jar.detect_conflicts:
-            obj._p_serial = p64(state_doc.pop('_py_serial', 0))
+        # Allow the conflict handler to modify the object or state document
+        # before it is set on the object.
+        self._jar.conflict_handler.on_before_set_state(obj, state_doc)
         # Now convert the document to a proper Python state dict.
         state = dict(self.get_object(state_doc, obj))
         # Now store the original state. It is assumed that the state dict is
         # not modified later.
-        self._jar._original_states[obj._p_oid] = doc
+        # Make sure that we never set the original state multiple times, even
+        # if reassigning the state within the same transaction.
+        if obj._p_oid not in self._jar._original_states:
+            self._jar._original_states[obj._p_oid] = doc
         # Set the state.
         obj.__setstate__(state)
 

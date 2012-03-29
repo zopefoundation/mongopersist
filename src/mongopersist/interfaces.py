@@ -63,6 +63,55 @@ class ConflictError(transaction.interfaces.TransientError):
 class CircularReferenceError(Exception):
     pass
 
+class IConflictHandler(zope.interface.Interface):
+
+    datamanager = zope.interface.Attribute(
+        """The datamanager for which to conduct the conflict resolution.""")
+
+    def on_before_set_state(obj, state):
+        """Method called just before the object's state is set."""
+
+    def on_before_store(obj, state):
+        """Method called just before the object state is written to MongoDB."""
+
+    def on_after_store(obj, state):
+        """Method called right after the object state was written to MongoDB."""
+
+    def on_modified(obj):
+        """Method called when an object is registered as modified."""
+
+    def has_conflicts(objs):
+        """Checks whether any of the passed in objects have conflicts.
+
+        Returns False if conflicts were found, otherwise True is returned.
+
+        While calling this method, the conflict handler may try to resolve
+        conflicts.
+        """
+
+    def check_conflicts(self, objs):
+        """Checks whether any of the passed in objects have conflicts.
+
+        Raises a ``ConflictError`` for the first object with a conflict.
+
+        While calling this method, the conflict handler may try to resolve
+        conflicts.
+        """
+
+class IResolvingConflictHandler(IConflictHandler):
+    """A conflict handler that is able to resolve conflicts."""
+
+    def resolve(obj, orig_doc, cur_doc, new_doc):
+        """Tries to resolve a conflict.
+
+        This is usually done through some comparison of the states. The method
+        returns ``True`` if the conflict was resolved and ``False`` otherwise.
+
+        It is the responsibility of this method to modify the object and data
+        manager models, so that the resolution is valid in the next step.
+        """
+
+
 class IObjectSerializer(zope.interface.Interface):
     """An object serializer allows for custom serialization output for
     objects."""
@@ -134,8 +183,8 @@ class IMongoDataManager(persistent.interfaces.IPersistentDataManager):
     root = zope.interface.Attribute(
         """Get the root object, which is a mapping.""")
 
-    detect_conflicts = zope.interface.Attribute(
-        """A flag, when set it enables write conflict detection.""")
+    conflict_handler = zope.interface.Attribute(
+        """An ``IConflictHandler`` instance that handles all conflicts.""")
 
     def get_collection(db_name, coll_name):
         """Return the collection for the given DB and collection names."""

@@ -526,13 +526,13 @@ implemented using a serial number on the document.
 Let's reset the database and create a data manager with enabled conflict
 detection:
 
-  >>> from mongopersist import datamanager
+  >>> from mongopersist import conflict, datamanager
   >>> conn.drop_database(DBNAME)
   >>> dm2 = datamanager.MongoDataManager(
   ...     conn,
   ...     default_database=DBNAME,
   ...     root_database=DBNAME,
-  ...     detect_conflicts=True)
+  ...     conflict_handler_factory=conflict.SimpleSerialConflictHandler)
 
 Now we add a person and see that the serial got stored.
 

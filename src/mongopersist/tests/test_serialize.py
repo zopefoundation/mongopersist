@@ -19,7 +19,7 @@ import pprint
 
 from pymongo import binary, dbref, objectid
 
-from mongopersist import testing, serialize
+from mongopersist import conflict, serialize, testing
 
 class Top(persistent.Persistent):
     _p_mongo_collection = 'Top'
@@ -347,7 +347,7 @@ def doctest_ObjectWriter_store_with_conflict_detection():
     manager can then use the serial to detect whether a competing transaction
     has written to the document.
 
-      >>> dm.detect_conflicts = True
+      >>> dm.conflict_handler = conflict.SimpleSerialConflictHandler(dm)
       >>> writer = serialize.ObjectWriter(dm)
 
       >>> top = Top()
@@ -640,7 +640,7 @@ def doctest_ObjectReader_get_ghost():
 def doctest_ObjectReader_set_ghost_state():
     r"""ObjectReader: set_ghost_state()
 
-      >>> dm.detect_conflicts = True
+      >>> dm.conflict_handler = conflict.SimpleSerialConflictHandler(dm)
 
       >>> writer = serialize.ObjectWriter(dm)
       >>> top = Top()

@@ -24,15 +24,12 @@ import sys
 import zope.interface
 
 from zope.exceptions import exceptionformatter
-from mongopersist import interfaces, serialize
+from mongopersist import conflict, interfaces, serialize
 
 MONGO_ACCESS_LOGGING = False
 COLLECTION_LOG = logging.getLogger('mongopersist.collection')
 
 LOG = logging.getLogger(__name__)
-
-def create_conflict_error(obj, orig_doc, cur_doc, new_doc):
-    return interfaces.ConflictError(None, obj, orig_doc, cur_doc, new_doc)
 
 def process_spec(collection, spec):
     try:
@@ -173,14 +170,14 @@ class Root(UserDict.DictMixin):
 class MongoDataManager(object):
     zope.interface.implements(interfaces.IMongoDataManager)
 
-    detect_conflicts = False
     default_database = 'mongopersist'
     name_map_collection = 'persistence_name_map'
-    conflict_error_factory = staticmethod(create_conflict_error)
+    conflict_handler = None
 
-    def __init__(self, conn, detect_conflicts=None, default_database=None,
+    def __init__(self, conn, default_database=None,
                  root_database=None, root_collection=None,
-                 name_map_collection=None, conflict_error_factory=None):
+                 name_map_collection=None,
+                 conflict_handler_factory=conflict.NoCheckConflictHandler):
         self._conn = conn
         self._reader = serialize.ObjectReader(self)
         self._writer = serialize.ObjectWriter(self)
@@ -193,14 +190,12 @@ class MongoDataManager(object):
         self._needs_to_join = True
         self._object_cache = {}
         self.annotations = {}
-        if detect_conflicts is not None:
-            self.detect_conflicts = detect_conflicts
+        if self.conflict_handler is None:
+            self.conflict_handler = conflict_handler_factory(self)
         if default_database is not None:
             self.default_database = default_database
         if name_map_collection is not None:
             self.name_map_collection = name_map_collection
-        if conflict_error_factory is not None:
-            self.conflict_error_factory = conflict_error_factory
         self.transaction_manager = transaction.manager
         self.root = Root(self, root_database, root_collection)
 
@@ -210,33 +205,6 @@ class MongoDataManager(object):
     def _get_collection_from_object(self, obj):
         db_name, coll_name = self._writer.get_collection_name(obj)
         return self._get_collection(db_name, coll_name)
-
-    def _check_conflict(self, obj, can_raise=True):
-        # This object is not even added to the database yet, so there
-        # cannot be a conflict.
-        if obj._p_oid is None:
-            return None if can_raise else False
-        coll = self._get_collection_from_object(obj)
-        new_doc = coll.find_one(obj._p_oid.id, fields=('_py_serial',))
-        if new_doc is None:
-            return None if can_raise else False
-        if new_doc.get('_py_serial', 0) != serialize.u64(obj._p_serial):
-            if can_raise:
-                orig_doc = self._original_states.get(obj._p_oid)
-                cur_doc = coll.find_one(obj._p_oid.id)
-                raise self.conflict_error_factory(
-                    obj, orig_doc, cur_doc, new_doc)
-            else:
-                return True
-        return None if can_raise else False
-
-    def _check_conflicts(self):
-        if not self.detect_conflicts:
-            return
-        # Check each modified object to see whether Mongo has a new version of
-        # the object.
-        for obj in self._registered_objects:
-            self._check_conflict(obj)
 
     def _flush_objects(self):
         # Now write every registered object, but make sure we write each
@@ -275,7 +243,7 @@ class MongoDataManager(object):
 
     def flush(self):
         # Check for conflicts.
-        self._check_conflicts()
+        self.conflict_handler.check_conflicts(self._registered_objects)
         # Now write every registered object, but make sure we write each
         # object just once.
         self._flush_objects()
@@ -335,10 +303,12 @@ class MongoDataManager(object):
             self.transaction_manager.get().join(self)
             self._needs_to_join = False
 
-        if obj is not None and obj not in self._registered_objects:
-            self._registered_objects.append(obj)
-        if obj is not None and obj not in self._modified_objects:
-            self._modified_objects.append(obj)
+        if obj is not None:
+            if obj not in self._registered_objects:
+                self._registered_objects.append(obj)
+            if obj not in self._modified_objects:
+                self._modified_objects.append(obj)
+            self.conflict_handler.on_modified(obj)
 
     def abort(self, transaction):
         # Aborting the transaction requires three steps:
@@ -364,8 +334,7 @@ class MongoDataManager(object):
                     'Original state not found while aborting: %r (%s)',
                     obj, db_ref.id if db_ref else '')
                 continue
-            if (self.detect_conflicts and
-                self._check_conflict(obj, can_raise=False)):
+            if self.conflict_handler.has_conflicts([obj]):
                 # If we have a conflict, we are not going to reset to the
                 # original state. (This is a policy that should be made
                 # pluggable.)
@@ -378,7 +347,7 @@ class MongoDataManager(object):
         self.reset()
 
     def commit(self, transaction):
-        self._check_conflicts()
+        self.conflict_handler.check_conflicts(self._registered_objects)
 
     def tpc_begin(self, transaction):
         pass

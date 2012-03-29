@@ -17,7 +17,7 @@ import persistent
 import transaction
 from pymongo import dbref, objectid
 
-from mongopersist import interfaces, testing, datamanager
+from mongopersist import conflict, interfaces, testing, datamanager
 
 class Foo(persistent.Persistent):
     def __init__(self, name=None):
@@ -25,19 +25,6 @@ class Foo(persistent.Persistent):
 
 class Bar(persistent.Persistent):
     _p_mongo_sub_object = True
-
-def doctest_create_conflict_error():
-    r"""create_conflict_error(): General Test
-
-    Simple helper function to create a conflict error.
-
-     >>> foo = Foo()
-
-     >>> datamanager.create_conflict_error(
-     ...     foo, {'_py_serial': 1}, {'_py_serial': 2}, {'_py_serial': 3})
-     ConflictError: database conflict error
-         (oid None, class Foo, orig serial 1, cur serial 2, new serial 3)
-    """
 
 def doctest_Root():
     r"""Root: General Test
@@ -171,12 +158,10 @@ def doctest_MongoDataManager_object_dump_load_reset():
 
       >>> dm = datamanager.MongoDataManager(
       ...     conn,
-      ...     detect_conflicts=True,
       ...     default_database = DBNAME,
       ...     root_database = DBNAME,
       ...     root_collection = 'proot',
-      ...     name_map_collection = 'coll_pypath_map',
-      ...     conflict_error_factory = datamanager.create_conflict_error)
+      ...     name_map_collection = 'coll_pypath_map')
 
     There are two convenience methods that let you serialize and de-serialize
     objects explicitly:
@@ -225,7 +210,7 @@ def doctest_MongoDataManager_flush():
 
     We also want to test the effects of conflict detection:
 
-      >>> dm.detect_conflicts = True
+      >>> dm.conflict_handler = conflict.SimpleSerialConflictHandler(dm)
 
     Let's now add an object to the database and reset the manager like it is
     done at the end of a transaction:
@@ -345,7 +330,7 @@ def doctest_MongoDataManager_insert_conflict_detection():
     This test ensures that if the datamanager has conflict detection turned
     on, all the needed helper fields are written.
 
-      >>> dm.detect_conflicts = True
+      >>> dm.conflict_handler = conflict.SimpleSerialConflictHandler(dm)
       >>> foo = Foo('foo')
       >>> foo_ref = dm.insert(foo)
 
@@ -598,7 +583,6 @@ def doctest_MongoDataManager_abort_modified_only():
         ({u'_id': ObjectId('4f5c114f37a08e2cac000000'), u'name': u'one'},
          {u'_id': ObjectId('4f5c114f37a08e2cac000001'), u'name': u'two'},
          {u'_id': ObjectId('4f5c114f37a08e2cac000002'), u'name': u'3'})
-
     """
 
 def doctest_MongoDataManager_abort_conflict_detection():
@@ -612,7 +596,7 @@ def doctest_MongoDataManager_abort_conflict_detection():
 
     First let's create an initial state:
 
-      >>> dm.detect_conflicts = True
+      >>> dm.conflict_handler = conflict.SimpleSerialConflictHandler(dm)
       >>> dm.reset()
       >>> foo_ref = dm.insert(Foo('one'))
       >>> dm.reset()
@@ -628,8 +612,9 @@ def doctest_MongoDataManager_abort_conflict_detection():
     2. Transaction B comes along and modifies the object as well and commits:
 
        >>> dm_B = datamanager.MongoDataManager(
-       ...     conn, detect_conflicts=True,
-       ...     default_database=DBNAME, root_database=DBNAME)
+       ...     conn,
+       ...     default_database=DBNAME, root_database=DBNAME,
+       ...     conflict_handler_factory=conflict.SimpleSerialConflictHandler)
 
        >>> foo_B = dm_B.load(foo_ref)
        >>> foo_B.name = 'Eins'
@@ -668,7 +653,7 @@ def doctest_MongoDataManager_tpc_finish():
     This method finishes the two-phase commit. So let's store a simple object:
 
       >>> foo = Foo()
-      >>> dm.detect_conflicts = True
+      >>> dm.conflict_handler = conflict.SimpleSerialConflictHandler(dm)
       >>> dm._registered_objects = [foo]
       >>> dm.tpc_finish(transaction.get())
       >>> foo._p_serial
