@@ -5,6 +5,20 @@ CHANGES
 0.7.0 (2012-03-??)
 ------------------
 
+- Feature: Conflicts are now detected while aborting a transaction. The
+  implemented policy will not reset the document state, if a conflict is
+  detected.
+
+- Feature: Provide a flag to turn on MongoDB access logging. The flag is false
+  by default, since access logging is very expensive.
+
+- Bug: We have seen several occasions in production where we suddenly lost
+  some state in some documents, which prohibited the objects from being
+  loadable again. The cause was that the ``_original_states`` attribute did not
+  store the raw MongoDB document, but a modified one. Since those states are
+  used during abort to reset the state, however, the modified document got
+  stored making the affected objects inaccessible.
+
 - Bug: When a transaction was aborted, the states of all *loaded* objects were
   reset. Now, only *modified* object states are reset. This should drastically
   lower problems (by the ratio of read over modified objects) due to lack of

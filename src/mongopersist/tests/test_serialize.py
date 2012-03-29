@@ -668,8 +668,14 @@ def doctest_ObjectReader_set_ghost_state():
     Note that the original state is stored in the data manager:
 
       >>> gobj._p_jar._original_states
-      {DBRef('Top', ObjectId('4f5bf4e437a08e2614000001'), 'mongopersist_test'):
-         {u'name': u'top'}}
+      {DBRef('Top', ObjectId('4f7487e237a08e1a86000001'), 'mongopersist_test'):
+          {u'_id': ObjectId('4f7487e237a08e1a86000001'),
+           u'_py_serial': 1,
+           u'name': u'top'}}
+
+    Note that it is important that the fully returned Mongo document is stored
+    here, since this document is taken and put back into Mongo when a
+    transaction is not committed.
 
     This state does not change, even when the object is modified:
 

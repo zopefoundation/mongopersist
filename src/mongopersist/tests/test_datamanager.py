@@ -338,6 +338,25 @@ def doctest_MongoDataManager_insert():
        {u'_id': ObjectId('4f5c443837a08e37bf000001'), u'name': u'Foo 2'})
     """
 
+def doctest_MongoDataManager_insert_conflict_detection():
+    r"""MongoDataManager: insert(obj): Conflict Detection.
+
+    This test ensures that if the datamanager has conflict detection turned
+    on, all the needed helper fields are written.
+
+      >>> dm.detect_conflicts = True
+      >>> foo = Foo('foo')
+      >>> foo_ref = dm.insert(foo)
+
+    Let's check that all the fields are there:
+
+      >>> coll = dm.get_collection_from_object(foo)
+      >>> coll.find_one({})
+      {u'_id': ObjectId('4f74837237a08e186f000000'), u'_py_serial': 1,
+       u'name': u'foo'}
+    """
+
+
 def doctest_MongoDataManager_remove():
     r"""MongoDataManager: remove(obj)
 
@@ -578,6 +597,51 @@ def doctest_MongoDataManager_abort_modified_only():
         ({u'_id': ObjectId('4f5c114f37a08e2cac000000'), u'name': u'one'},
          {u'_id': ObjectId('4f5c114f37a08e2cac000001'), u'name': u'two'},
          {u'_id': ObjectId('4f5c114f37a08e2cac000002'), u'name': u'3'})
+
+    """
+
+def doctest_MongoDataManager_abort_conflict_detection():
+    r"""MongoDataManager: abort(): Conflict detections while aborting.
+
+    When a transaction is aborting, we are usually resetting the state of the
+    modified objects. What happens, however, when the document was updated
+    since the last flush?
+
+    The implemented policy now does not reset the state in this case.
+
+    First let's create an initial state:
+
+      >>> dm.detect_conflicts = True
+      >>> dm.reset()
+      >>> foo_ref = dm.insert(Foo('one'))
+      >>> dm.reset()
+      >>> coll = dm._get_collection_from_object(Foo())
+
+    1. Transaction A loads the object and modifies it:
+
+       >>> foo_A = dm.load(foo_ref)
+       >>> foo_A.name = u'1'
+       >>> coll.find_one({})
+       {u'_id': ObjectId('4e7dd'), u'_py_serial': 1, u'name': u'one'}
+
+    2. Transaction B comes along and modifies the object as well and commits:
+
+       >>> dm_B = datamanager.MongoDataManager(
+       ...     conn, detect_conflicts=True,
+       ...     default_database=DBNAME, root_database=DBNAME)
+
+       >>> foo_B = dm_B.load(foo_ref)
+       >>> foo_B.name = 'Eins'
+       >>> dm_B.tpc_finish(None)
+       >>> coll.find_one({})
+       {u'_id': ObjectId('4e7dd'), u'_py_serial': 2, u'name': u'Eins'}
+
+    3. If transcation A is later aborted, it does not reset the state, since
+       it changed:
+
+       >>> dm.abort(None)
+       >>> coll.find_one({})
+       {u'_id': ObjectId('4e7dd'), u'_py_serial': 2, u'name': u'Eins'}
 
     """
 

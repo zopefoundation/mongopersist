@@ -384,14 +384,16 @@ class ObjectReader(object):
             coll = self._jar.get_collection(
                 obj._p_oid.database, obj._p_oid.collection)
             doc = coll.find_one({'_id': obj._p_oid.id})
+        # Create a copy of the doc, so that we can modify it.
+        state_doc = doc.copy()
         # Remove unwanted attributes.
-        doc.pop('_id')
-        doc.pop('_py_persistent_type', None)
+        state_doc.pop('_id')
+        state_doc.pop('_py_persistent_type', None)
         # Store the serial, if conflict detection is enabled.
         if self._jar.detect_conflicts:
-            obj._p_serial = p64(doc.pop('_py_serial', 0))
+            obj._p_serial = p64(state_doc.pop('_py_serial', 0))
         # Now convert the document to a proper Python state dict.
-        state = dict(self.get_object(doc, obj))
+        state = dict(self.get_object(state_doc, obj))
         # Now store the original state. It is assumed that the state dict is
         # not modified later.
         self._jar._original_states[obj._p_oid] = doc

@@ -26,6 +26,7 @@ import zope.interface
 from zope.exceptions import exceptionformatter
 from mongopersist import interfaces, serialize
 
+MONGO_ACCESS_LOGGING = False
 COLLECTION_LOG = logging.getLogger('mongopersist.collection')
 
 def create_conflict_error(obj, new_doc):
@@ -76,7 +77,7 @@ class ProcessSpecDecorator(object):
 class LoggingDecorator(object):
 
     # these are here to be easily patched
-    ADDTB = True
+    ADD_TB = True
     TB_LIMIT = 10 # 10 should be sufficient to figure
 
     def __init__(self, collection, function):
@@ -84,7 +85,7 @@ class LoggingDecorator(object):
         self.function = function
 
     def __call__(self, *args, **kwargs):
-        if self.ADDTB:
+        if self.ADD_TB:
             try:
                 raise ValueError('boom')
             except:
@@ -116,7 +117,7 @@ class CollectionWrapper(object):
 
     def __getattr__(self, name):
         attr = getattr(self.collection, name)
-        if name in self.LOGGED_METHODS:
+        if MONGO_ACCESS_LOGGING  and name in self.LOGGED_METHODS:
             attr = LoggingDecorator(self.collection, attr)
         if name in self.QUERY_METHODS:
             attr = FlushDecorator(self._datamanager, attr)
@@ -210,22 +211,29 @@ class MongoDataManager(object):
         db_name, coll_name = self._writer.get_collection_name(obj)
         return self._get_collection(db_name, coll_name)
 
+    def _check_conflict(self, obj, can_raise=True):
+        # This object is not even added to the database yet, so there
+        # cannot be a conflict.
+        if obj._p_oid is None:
+            return None if can_raise else False
+        coll = self._get_collection_from_object(obj)
+        new_doc = coll.find_one(obj._p_oid.id, fields=('_py_serial',))
+        if new_doc is None:
+            return None if can_raise else False
+        if new_doc.get('_py_serial', 0) != serialize.u64(obj._p_serial):
+            if can_raise:
+                raise self.conflict_error_factory(obj, new_doc)
+            else:
+                return True
+        return None if can_raise else False
+
     def _check_conflicts(self):
         if not self.detect_conflicts:
             return
         # Check each modified object to see whether Mongo has a new version of
         # the object.
         for obj in self._registered_objects:
-            # This object is not even added to the database yet, so there
-            # cannot be a conflict.
-            if obj._p_oid is None:
-                continue
-            coll = self._get_collection_from_object(obj)
-            new_doc = coll.find_one(obj._p_oid.id, fields=('_py_serial',))
-            if new_doc is None:
-                continue
-            if new_doc.get('_py_serial', 0) != serialize.u64(obj._p_serial):
-                raise self.conflict_error_factory(obj, new_doc)
+            self._check_conflict(obj)
 
     def _flush_objects(self):
         # Now write every registered object, but make sure we write each
@@ -349,10 +357,13 @@ class MongoDataManager(object):
                 # the tests abort transactions often without having loaded
                 # objects through proper channels.
                 continue
+            if (self.detect_conflicts and
+                self._check_conflict(obj, can_raise=False)):
+                # If we have a conflict, we are not going to reset to the
+                # original state. (This is a policy that should be made
+                # pluggable.)
+                continue
             coll = self.get_collection(db_ref.database, db_ref.collection)
-            # XXX: There should be a check here whether the state has been
-            # modified in the mean time by another transaction. Then a policy
-            # needs to decide what to do.
             coll.update({'_id': db_ref.id}, state, True)
         self.reset()
 
