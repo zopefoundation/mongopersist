@@ -29,6 +29,8 @@ from mongopersist import interfaces, serialize
 MONGO_ACCESS_LOGGING = False
 COLLECTION_LOG = logging.getLogger('mongopersist.collection')
 
+LOG = logging.getLogger(__name__)
+
 def create_conflict_error(obj, new_doc):
     return interfaces.ConflictError(
         None, obj,
@@ -351,17 +353,24 @@ class MongoDataManager(object):
         # 3. Reset any changed states.
         for obj in self._modified_objects:
             db_ref = obj._p_oid
+            __traceback_info__ = (obj, db_ref)
             state = self._original_states.get(db_ref)
             if state is None:
                 # This should not happen in a fully running environment, but
                 # the tests abort transactions often without having loaded
                 # objects through proper channels.
+                LOG.warn(
+                    'Original state not found while aborting: %r (%s)',
+                    obj, db_ref.id if db_ref else '')
                 continue
             if (self.detect_conflicts and
                 self._check_conflict(obj, can_raise=False)):
                 # If we have a conflict, we are not going to reset to the
                 # original state. (This is a policy that should be made
                 # pluggable.)
+                LOG.info(
+                    'Conflict detected while aborting: %r (%s)',
+                    obj, db_ref.id if db_ref else '')
                 continue
             coll = self.get_collection(db_ref.database, db_ref.collection)
             coll.update({'_id': db_ref.id}, state, True)
