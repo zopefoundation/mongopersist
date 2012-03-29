@@ -841,6 +841,56 @@ def doctest_ProcessSpecDecorator_basic():
       >>> PlacelessSetup().tearDown()
     """
 
+
+def doctest_LoggingDecorator_basic():
+    r"""class LoggingDecorator: basic
+
+    The ``LoggingDecorator`` decorator will log the name, arguments ans even
+    current stack of a function call. Let's stub the logger:
+
+      >>> orig_log_debug = datamanager.COLLECTION_LOG.debug
+      >>> def fake_debug(msg, *args):
+      ...     print msg % args
+      >>> datamanager.COLLECTION_LOG.debug = fake_debug
+
+    Let's create the decorator:
+
+      >>> coll = conn[DBNAME]['mongopersist.tests.test_datamanager.Foo']
+      >>> logging_find = datamanager.LoggingDecorator(coll, coll.find)
+      >>> list(logging_find({'life': 42}))
+      collection: mongopersist_test.mongopersist.tests.test_datamanager.Foo find,
+       args:({'life': 42},),
+       kwargs:{},
+       tb:
+          ...
+          list(logging_find({'life': 42}))
+      <BLANKLINE>
+      []
+
+    Keyword arguments are also supported:
+
+      >>> list(logging_find(spec={'life': 42}))
+      collection: mongopersist_test.mongopersist.tests.test_datamanager.Foo find,
+       args:(),
+       kwargs:{'spec': {'life': 42}},
+       tb:
+          ...
+          list(logging_find(spec={'life': 42}))
+      <BLANKLINE>
+      []
+
+    Tracebacks can also be turned off:
+
+      >>> logging_find.ADD_TB = False
+      >>> list(logging_find({'life': 42}))
+      collection: mongopersist_test.mongopersist.tests.test_datamanager.Foo find,
+       args:({'life': 42},),
+       kwargs:{},
+       tb:
+      <omitted>
+      []
+    """
+
 def test_suite():
     return doctest.DocTestSuite(
         setUp=testing.setUp, tearDown=testing.tearDown,
