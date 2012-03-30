@@ -15,11 +15,7 @@
 from __future__ import absolute_import
 import UserDict
 import logging
-import persistent
-import pymongo
-import pymongo.dbref
 import transaction
-import traceback
 import sys
 import zope.interface
 
