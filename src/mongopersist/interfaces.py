@@ -26,6 +26,7 @@ MONGO_NATIVE_TYPES = (
     objectid.ObjectId, dbref.DBRef)
 
 class ConflictError(transaction.interfaces.TransientError):
+    """An error raised when a write conflict is detected."""
 
     def __init__(self, message=None, object=None,
                  orig_state=None, cur_state=None, new_state=None):
