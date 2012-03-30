@@ -5,8 +5,6 @@ CHANGES
 0.7.0 (2012-03-??)
 ------------------
 
-- Added transaction ID to LoggingDecorator
-
 - Feature: A new ``IConflictHandler`` interface now controls all aspects of
   conflict resolution. The following implementations are provided:
 
@@ -22,12 +20,19 @@ CHANGES
   * ``ResolvingSerialConflictHandler``: Another serial handler, but it has the
     ability to resolve a conflict. For this to happen, a persistent object
     must implement ``_p_resolveConflict(orig_state, cur_state, new_state)``,
-    which returns the new, merged state.
+    which returns the new, merged state. (Experimental)
 
   As a result, the ``detect_conflicts`` flag of the data manager was removed
   and replaced with the ``conflict_handler`` attribute. One can pass in the
   ``conflict_handler_factory`` to the data manager constructor. The factory
   needs to expect on argument, the data manager.
+
+- Feature: Whenever ``setattr()`` is called on a persistent object, it is
+  marked as changed even if the new value equals the old one. To minimize
+  writes to MongoDB, the latest database state is compared to the new state
+  and the new state is only written when changes are detected. A flag called
+  ``serialize.IGNORE_IDENTICAL_DOCUMENTS`` (default: ``True``) is used to
+  control the feature. (Experimental)
 
 - Feature: ``ConflictError`` has now a much more meaningful API. Instead of
   just referencing the object and different serials, it now actual has the
@@ -39,6 +44,8 @@ CHANGES
 
 - Feature: Provide a flag to turn on MongoDB access logging. The flag is false
   by default, since access logging is very expensive.
+
+- Feature: Added transaction ID to LoggingDecorator.
 
 - Bug: We have seen several occasions in production where we suddenly lost
   some state in some documents, which prohibited the objects from being

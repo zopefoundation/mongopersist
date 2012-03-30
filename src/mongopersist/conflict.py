@@ -46,6 +46,9 @@ class NoCheckConflictHandler(object):
     def on_modified(self, obj):
         pass
 
+    def is_same(self, obj, orig_state, new_state):
+        return orig_state == new_state
+
     def has_conflicts(self, objs):
         return False
 
@@ -67,13 +70,24 @@ class SerialConflictHandler(object):
 
     def on_before_store(self, obj, state):
         state[self.field_name] = u64(getattr(obj, '_p_serial', 0)) + 1
-        obj._p_serial = p64(state[self.field_name])
+        # Do not set the object serial yet, since we might not decide to store
+        # after all.
 
     def on_after_store(self, obj, state):
-        pass
+        obj._p_serial = p64(state[self.field_name])
 
     def on_modified(self, obj):
         pass
+
+    def is_same(self, obj, orig_state, new_state):
+        if orig_state is None:
+            # This should never happen in a real running system.
+            return False
+        orig_state = orig_state.copy()
+        orig_state.pop(self.field_name)
+        new_state = new_state.copy()
+        new_state.pop(self.field_name)
+        return orig_state == new_state
 
     def resolve(self, obj, orig_doc, cur_doc, new_doc):
         raise NotImplementedError

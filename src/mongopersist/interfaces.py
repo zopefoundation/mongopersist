@@ -81,6 +81,11 @@ class IConflictHandler(zope.interface.Interface):
     def on_modified(obj):
         """Method called when an object is registered as modified."""
 
+    def is_same(obj, orig_state, new_state):
+        """Compares two states of the object and determines whether they are
+        the same. It should only compare actual object fields and not any
+        meta-data fields."""
+
     def has_conflicts(objs):
         """Checks whether any of the passed in objects have conflicts.
 

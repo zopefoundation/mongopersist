@@ -185,7 +185,12 @@ class MongoDataManager(object):
         self._inserted_objects = []
         self._modified_objects = []
         self._removed_objects = []
+        # Keeps states as found at the beginning of the transaction.
         self._original_states = {}
+        # The latest states written to the database. This is different to the
+        # original states, since changes can be flushed to the database
+        # multiple times per transaction.
+        self._latest_states = {}
         self._needs_to_join = True
         self._object_cache = {}
         self.annotations = {}

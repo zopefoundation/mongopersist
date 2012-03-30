@@ -76,6 +76,14 @@ def doctest_NoCheckConflictHandler_basic():
       >>> obj, state
       (<Foo 'one'>, {'name': 'one'})
 
+    There is a method that allows for comparing 2 states of a given
+    object. The method is used to detect whether objects really changed.
+
+      >>> handler.is_same(obj, {'name': 'one'}, {'name': 'one'})
+      True
+      >>> handler.is_same(obj, {'name': 'one'}, {'name': 'eins'})
+      False
+
     Let's check the conflict checking methods:
 
       >>> handler.has_conflicts([obj])
@@ -146,25 +154,49 @@ def doctest_SimpleSerialConflictHandler_basic():
       >>> state
       {'name': 'one'}
 
-    Before the object state is stored in Mongo, we add the serial by taking
-    the current one and add 1 to it:
+    Before the object state is stored in Mongo, we add the serial to the
+    document by taking the current one and add 1 to it. Note that the object's
+    serial is not changed yet, since storing the document might still be
+    cancelled (for example by detecting that the DB state equals the new
+    state):
 
       >>> state = {'name': 'one'}
       >>> handler.on_before_store(obj, state)
+      >>> obj._p_serial
+      '\x00\x00\x00\x00\x00\x00\x00\x05'
       >>> state
       {'_py_serial': 6, 'name': 'one'}
 
-    The event handlers after store and on modification do not need to do
-    anything:
+    After the document was stored, we can safely update the object as well.
 
-      >>> state = {'name': 'one'}
       >>> handler.on_after_store(obj, state)
-      >>> obj, state
-      (<Foo 'one'>, {'name': 'one'})
+      >>> obj._p_serial
+      '\x00\x00\x00\x00\x00\x00\x00\x06'
+      >>> state
+      {'_py_serial': 6, 'name': 'one'}
+
+    The event handler on modification does not need to do anything:
 
       >>> handler.on_modified(obj)
       >>> obj
       <Foo 'one'>
+
+    There is a method that allows for comparing 2 states of a given
+    object. The method is used to detect whether objects really changed.
+
+      >>> handler.is_same(
+      ...     obj,
+      ...     {'name': 'one', '_py_serial': 1},
+      ...     {'name': 'one', '_py_serial': 2})
+      True
+      >>> handler.is_same(
+      ...     obj,
+      ...     {'name': 'one', '_py_serial': 1},
+      ...     {'name': 'eins', '_py_serial': 2})
+      False
+
+    As you can see, the serial number is omitted from the comparison, because
+    it does not represent part of the object state, but is state meta-data.
 
     Let's check the conflict checking methods now. Initially, there are no
     conflicts:

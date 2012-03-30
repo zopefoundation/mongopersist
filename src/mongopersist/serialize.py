@@ -31,6 +31,8 @@ from mongopersist import interfaces
 SERIALIZERS = []
 OID_CLASS_LRU = lru.LRUCache(20000)
 
+IGNORE_IDENTICAL_DOCUMENTS = True
+
 def get_dotted_name(obj):
     return obj.__module__+'.'+obj.__name__
 
@@ -239,8 +241,10 @@ class ObjectWriter(object):
         # if needed.
         self._jar.conflict_handler.on_before_store(obj, doc)
 
+        stored = False
         if obj._p_oid is None:
             doc_id = coll.insert(doc)
+            stored = True
             obj._p_jar = self._jar
             obj._p_oid = pymongo.dbref.DBRef(coll_name, doc_id, db_name)
             # Make sure that any other code accessing this object in this
@@ -248,11 +252,23 @@ class ObjectWriter(object):
             self._jar._object_cache[doc_id] = obj
         else:
             doc['_id'] = obj._p_oid.id
-            coll.save(doc)
+            # We only want to store a new version of the document, if it is
+            # different. We have to delegate that task to the conflict
+            # handler, since it might know about meta-fields that need to be
+            # ignored.
+            orig_doc = self._jar._latest_states.get(obj._p_oid)
+            if (not IGNORE_IDENTICAL_DOCUMENTS or
+                not self._jar.conflict_handler.is_same(obj, orig_doc, doc)):
+                coll.save(doc)
+                stored = True
 
-        # A hook, so that the conflict handler can modify the object or state
-        # document after an object was stored.
-        self._jar.conflict_handler.on_after_store(obj, doc)
+        if stored:
+            # Make sure that the doc is added to the latest states.
+            self._jar._latest_states[obj._p_oid] = doc
+
+            # A hook, so that the conflict handler can modify the object or state
+            # document after an object was stored.
+            self._jar.conflict_handler.on_after_store(obj, doc)
 
         return obj._p_oid
 
@@ -406,9 +422,14 @@ class ObjectReader(object):
         # Now store the original state. It is assumed that the state dict is
         # not modified later.
         # Make sure that we never set the original state multiple times, even
-        # if reassigning the state within the same transaction.
+        # if reassigning the state within the same transaction. Otherwise we
+        # can never fully undo a transaction.
         if obj._p_oid not in self._jar._original_states:
             self._jar._original_states[obj._p_oid] = doc
+            # Sometimes this method is called to update the object state
+            # before storage. Only update the latest states when the object is
+            # originally loaded.
+            self._jar._latest_states[obj._p_oid] = doc
         # Set the state.
         obj.__setstate__(state)
 

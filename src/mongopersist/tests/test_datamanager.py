@@ -201,6 +201,70 @@ def doctest_MongoDataManager_object_dump_load_reset():
       >>> foo._p_oid = foo2._p_oid
     """
 
+def doctest_MongoDataManager_dump_only_on_real_change():
+    r"""MongoDataManager: dump(): dump on real change only.
+
+    The data manager only writes data when we actually have a difference in
+    state.
+
+    We have to use a serial conflict handler, otherwise it is hard to check
+    whether data was written.
+
+      >>> dm.conflict_handler = conflict.SimpleSerialConflictHandler(dm)
+
+    Let's now add an object:
+
+      >>> foo = Foo('foo')
+      >>> foo_ref = dm.insert(foo)
+      >>> dm.tpc_finish(None)
+
+      >>> coll = dm._get_collection_from_object(foo)
+      >>> coll.find_one({})
+      {u'_id': ObjectId('...'), u'_py_serial': 1, u'name': u'foo'}
+
+    So the original state is in. Let's now modify an object:
+
+      >>> foo = dm.load(foo_ref)
+      >>> foo.name = 'Foo'
+      >>> foo._p_changed
+      True
+      >>> dm.tpc_finish(None)
+
+      >>> coll.find_one({})
+      {u'_id': ObjectId('...'), u'_py_serial': 2, u'name': u'Foo'}
+
+    If we now modify the object again, but write the same value, the state
+    should not be written to Mongo.
+
+      >>> foo = dm.load(foo_ref)
+      >>> foo.name = 'Foo'
+      >>> foo._p_changed
+      True
+      >>> dm.tpc_finish(None)
+
+      >>> coll.find_one({})
+      {u'_id': ObjectId('...'), u'_py_serial': 2, u'name': u'Foo'}
+
+    Let's make sure everything also works when we flush the transaction in the
+    middle.
+
+      >>> foo = dm.load(foo_ref)
+      >>> foo.name = 'fuh'
+      >>> dm.flush()
+      >>> coll.find_one({})
+      {u'_id': ObjectId('...'), u'_py_serial': 3, u'name': u'fuh'}
+
+      >>> foo._p_changed
+      False
+      >>> foo.name = 'fuh'
+      >>> foo._p_changed
+      True
+
+      >>> dm.tpc_finish(None)
+      >>> coll.find_one({})
+      {u'_id': ObjectId('...'), u'_py_serial': 3, u'name': u'fuh'}
+    """
+
 def doctest_MongoDataManager_flush():
     r"""MongoDataManager: flush()
 
