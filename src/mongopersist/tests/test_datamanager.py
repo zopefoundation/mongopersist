@@ -859,6 +859,7 @@ def doctest_LoggingDecorator_basic():
       >>> logging_find = datamanager.LoggingDecorator(coll, coll.find)
       >>> list(logging_find({'life': 42}))
       collection: mongopersist_test.mongopersist.tests.test_datamanager.Foo find,
+       TXN:('... - ',),
        args:({'life': 42},),
        kwargs:{},
        tb:
@@ -871,6 +872,7 @@ def doctest_LoggingDecorator_basic():
 
       >>> list(logging_find(spec={'life': 42}))
       collection: mongopersist_test.mongopersist.tests.test_datamanager.Foo find,
+       TXN:('... - ',),
        args:(),
        kwargs:{'spec': {'life': 42}},
        tb:
@@ -884,10 +886,11 @@ def doctest_LoggingDecorator_basic():
       >>> logging_find.ADD_TB = False
       >>> list(logging_find({'life': 42}))
       collection: mongopersist_test.mongopersist.tests.test_datamanager.Foo find,
+       TXN:('... - ',),
        args:({'life': 42},),
        kwargs:{},
        tb:
-      <omitted>
+        <omitted>
       []
     """
 

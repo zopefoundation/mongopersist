@@ -5,6 +5,8 @@ CHANGES
 0.7.0 (2012-03-??)
 ------------------
 
+- Added transaction ID to LoggingDecorator
+
 - Feature: A new ``IConflictHandler`` interface now controls all aspects of
   conflict resolution. The following implementations are provided:
 

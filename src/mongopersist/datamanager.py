@@ -91,12 +91,15 @@ class LoggingDecorator(object):
                 tb = ''.join(exceptionformatter.extract_stack(
                     sys.exc_info()[2].tb_frame.f_back, limit=self.TB_LIMIT))
         else:
-            tb = '<omitted>'
+            tb = '  <omitted>'
+
+        txn = transaction.get()
+        txn = '%i - %s' %(id(txn), txn.description),
 
         COLLECTION_LOG.debug(
-            "collection: %s.%s %s,\n args:%r,\n kwargs:%r, \n tb:\n%s",
+            "collection: %s.%s %s,\n TXN:%s,\n args:%r,\n kwargs:%r, \n tb:\n%s",
             self.collection.database.name, self.collection.name,
-            self.function.__name__, args, kwargs, tb)
+            self.function.__name__, txn, args, kwargs, tb)
 
         return self.function(*args, **kwargs)
 
