@@ -47,6 +47,9 @@ CHANGES
 
 - Feature: Added transaction ID to LoggingDecorator.
 
+- Feature: Added a little script to test performance. It is not very
+  sophisticated, but it is sufficient for a first round of optimizations.
+
 - Performance: Drastically improved performance for collections that store
   only one type of objects and where the documents do not store the type
   (i.e. it is stored in the name map collection).
