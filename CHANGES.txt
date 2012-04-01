@@ -47,6 +47,10 @@ CHANGES
 
 - Feature: Added transaction ID to LoggingDecorator.
 
+- Performance: Drastically improved performance for collections that store
+  only one type of objects and where the documents do not store the type
+  (i.e. it is stored in the name map collection).
+
 - Bug: We have seen several occasions in production where we suddenly lost
   some state in some documents, which prohibited the objects from being
   loadable again. The cause was that the ``_original_states`` attribute did not

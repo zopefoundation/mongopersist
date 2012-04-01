@@ -278,33 +278,46 @@ class ObjectReader(object):
 
     def __init__(self, jar):
         self._jar = jar
+        self._single_map_cache = {}
 
     def simple_resolve(self, path):
         return resolve(path)
 
     def resolve(self, dbref):
         __traceback_info__ = dbref
+        # 1. Check the global oid-based lookup cache.
         try:
             return OID_CLASS_LRU[dbref.id]
         except KeyError:
             pass
-        # First we try to resolve the path directly.
+        # 2. Check the transient single map entry lookup cache.
+        try:
+            return self._single_map_cache[(dbref.database, dbref.collection)]
+        except KeyError:
+            pass
+        # 3. Try to resolve the path directly.
         try:
             return self.simple_resolve(dbref.collection)
         except ImportError:
             pass
+        # 4. No simple hits, so we have to do some leg work.
         # Let's now try to look up the path from the collection to path
         # mapping
         db = self._jar._conn[self._jar.default_database]
         coll = db[self._jar.name_map_collection]
         result = coll.find(
             {'collection': dbref.collection, 'database': dbref.database})
-        if result.count() == 0:
+        count = result.count()
+        if count == 0:
             raise ImportError(dbref)
-        elif result.count() == 1:
+        elif count == 1:
             # Do not add these results to the LRU cache, since the count might
-            # change later.
-            return self.simple_resolve(result.next()['path'])
+            # change later. But storing it for the length of the transaction
+            # is fine, which is really useful if you load a lot of objects of
+            # the same type.
+            klass = self.simple_resolve(result.next()['path'])
+            self._single_map_cache[(dbref.database, dbref.collection)] = klass
+            return klass
         else:
             if dbref.id is None:
                 raise ImportError(dbref)
