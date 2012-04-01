@@ -294,6 +294,12 @@ class MongoDataManager(object):
         if self._needs_to_join:
             self.transaction_manager.get().join(self)
             self._needs_to_join = False
+        # If the doc is None, but it has been loaded before, we look it
+        # up. This acts as a great hook for optimizations that load many
+        # documents at once. They can now dump the states into the
+        # _latest_states dictionary.
+        if doc is None:
+            doc = self._latest_states.get(obj._p_oid, None)
         self._reader.set_ghost_state(obj, doc)
         self._loaded_objects.append(obj)
 

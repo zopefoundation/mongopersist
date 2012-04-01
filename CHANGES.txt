@@ -51,6 +51,12 @@ CHANGES
   only one type of objects and where the documents do not store the type
   (i.e. it is stored in the name map collection).
 
+- Performance: The Zope Container fast load via find() did not work correctly,
+  since setstate() did not change the state from ghost to active and thus the
+  state was loaded again from MongoDB and set on the object. Now we use the
+  new ``_latest_states`` cache to lookup a document when ``setstate()`` is
+  called through the proper channels.
+
 - Bug: We have seen several occasions in production where we suddenly lost
   some state in some documents, which prohibited the objects from being
   loadable again. The cause was that the ``_original_states`` attribute did not

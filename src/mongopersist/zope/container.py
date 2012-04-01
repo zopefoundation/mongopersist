@@ -154,8 +154,9 @@ class MongoContainer(contained.Contained,
         dbref = pymongo.dbref.DBRef(
             self._m_collection, doc['_id'],
             self._m_database or self._m_jar.default_database)
-        obj = self._m_jar._reader.get_ghost(dbref)
-        self._m_jar.setstate(obj, doc)
+        # Stick the doc into the _latest_states:
+        self._m_jar._latest_states[dbref] = doc
+        obj = self._m_jar.load(dbref)
         obj._v_key = doc[self._m_mapping_key]
         obj._v_parent = self
         return obj
