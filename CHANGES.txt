@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.7.0 (2012-04-??)
+0.7.0 (2012-04-02)
 ------------------
 
 - Feature: A new ``IConflictHandler`` interface now controls all aspects of
