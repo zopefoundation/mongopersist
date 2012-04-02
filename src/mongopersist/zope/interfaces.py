@@ -60,6 +60,12 @@ class IMongoContainer(zope.interface.Interface):
         """Returns a query spec representing a filter that only returns
         objects in this container."""
 
+    def _m_add_items_filter(filter):
+        """Applies the item filter items to the provided filter.
+
+        Keys that are already in the passed in filter are not overwritten.
+        """
+
     def get_collection():
         """Get the Python representation of the collection.
 

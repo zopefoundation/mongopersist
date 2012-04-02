@@ -149,6 +149,11 @@ class MongoContainer(contained.Contained,
             filter[self._m_parent_key] = gs(self._m_get_parent_key_value())
         return filter
 
+    def _m_add_items_filter(self, filter):
+        for key, value in self._m_get_items_filter().items():
+            if key not in filter:
+                filter[key] = value
+
     def _load_one(self, doc):
         # Create a DBRef object and then load the full state of the object.
         dbref = pymongo.dbref.DBRef(
@@ -206,17 +211,29 @@ class MongoContainer(contained.Contained,
         # Send the uncontained event.
         contained.uncontained(value, self, key)
 
+    def __contains__(self, key):
+        return self.raw_find_one(
+            {self._m_mapping_key: key}, fields=()) is not None
+
+    def __iter__(self):
+        result = self.raw_find(
+            {self._m_mapping_key: {'$ne': None}}, fields=(self._m_mapping_key,))
+        for doc in result:
+            yield doc[self._m_mapping_key]
+
     def keys(self):
-        filter = self._m_get_items_filter()
-        filter[self._m_mapping_key] = {'$ne': None}
-        coll = self.get_collection()
-        return [doc[self._m_mapping_key]
-                for doc in coll.find(filter, fields=(self._m_mapping_key,))]
+        return list(self.__iter__())
+
+    def iteritems(self):
+        result = self.raw_find()
+        for doc in result:
+            obj = self._load_one(doc)
+            yield doc[self._m_mapping_key], obj
 
     def raw_find(self, spec=None, *args, **kwargs):
         if spec is None:
             spec  = {}
-        spec.update(self._m_get_items_filter())
+        self._m_add_items_filter(spec)
         coll = self.get_collection()
         return coll.find(spec, *args, **kwargs)
 
@@ -232,7 +249,7 @@ class MongoContainer(contained.Contained,
             spec_or_id  = {}
         if not isinstance(spec_or_id, dict):
             spec_or_id = {'_id': spec_or_id}
-        spec_or_id.update(self._m_get_items_filter())
+        self._m_add_items_filter(spec_or_id)
         coll = self.get_collection()
         return coll.find_one(spec_or_id, *args, **kwargs)
 

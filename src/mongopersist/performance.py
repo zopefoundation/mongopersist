@@ -75,13 +75,21 @@ def run_basic_crud(options):
     # Profile slow read
     transaction.begin()
     t1 = time.time()
-    for name in people:
-        person = people[name]
-        person.name
+    [people[name].name for name in people]
+    #cProfile.runctx(
+    #    '[people[name].name for name in people]', globals(), locals())
     t2 = time.time()
-    cache = dm._object_cache
     transaction.commit()
-    print 'Slow Read:    %.4f secs' % (t2-t1)
+    print 'Slow Read:        %.4f secs' % (t2-t1)
+
+    # Profile fast read (values)
+    transaction.begin()
+    t1 = time.time()
+    [person.name for person in people.values()]
+    #cProfile.runctx(
+    #    '[person.name for person in people.find()]', globals(), locals())
+    t2 = time.time()
+    print 'Fast Read (values): %.4f secs' % (t2-t1)
 
     # Profile fast read
     transaction.begin()
@@ -90,7 +98,7 @@ def run_basic_crud(options):
     #cProfile.runctx(
     #    '[person.name for person in people.find()]', globals(), locals())
     t2 = time.time()
-    print 'Fast Read:    %.4f secs' % (t2-t1)
+    print 'Fast Read (find):   %.4f secs' % (t2-t1)
 
     # Profile modification
     t1 = time.time()
@@ -103,7 +111,7 @@ def run_basic_crud(options):
     #cProfile.runctx(
     #    'modify()', globals(), locals())
     t2 = time.time()
-    print 'Modification: %.4f secs' % (t2-t1)
+    print 'Modification:     %.4f secs' % (t2-t1)
 
     if options.delete:
         # Profile deletion
@@ -112,7 +120,7 @@ def run_basic_crud(options):
             del people[name]
         transaction.commit()
         t2 = time.time()
-        print 'Deletion:     %.4f secs' % (t2-t1)
+        print 'Deletion:         %.4f secs' % (t2-t1)
 
 parser = optparse.OptionParser()
 parser.usage = '%prog [options]'

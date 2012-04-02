@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.7.0 (2012-03-??)
+0.7.0 (2012-04-??)
 ------------------
 
 - Feature: A new ``IConflictHandler`` interface now controls all aspects of
@@ -73,12 +73,15 @@ CHANGES
     of object and where the documents do not store the type (i.e. it is
     stored in the name map collection).
 
-  - The Zope Container fast load via find() did not work correctly, since
+  - The Mongo Container fast load via find() did not work correctly, since
     setstate() did not change the state from ghost to active and thus the
     state was loaded again from MongoDB and set on the object. Now we use the
     new ``_latest_states`` cache to lookup a document when ``setstate()`` is
     called through the proper channels. Now this "fast load" method truly
     causes O(1) database lookups.
+
+  - Implemented several more mapping methods for the Mongo Container, so that
+    all methods getting the full list of items are fast now.
 
   - Whenever the Mongo Object Id is used as a hash key, use the hash of the id
     instead. The ``__cmp__()`` method of the ``ObjectId`` class is way too
@@ -97,6 +100,11 @@ CHANGES
   reset. Now, only *modified* object states are reset. This should drastically
   lower problems (by the ratio of read over modified objects) due to lack of
   full MVCC.
+
+- Bug: When looking for an item by key/name (``find_*()`` methods) , you would
+  never get the right object back, but the first one found in the
+  database. This was due to clobbering the search filter with more general
+  parameters.
 
 
 0.6.1 (2012-03-28)

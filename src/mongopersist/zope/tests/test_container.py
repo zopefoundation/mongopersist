@@ -193,6 +193,8 @@ def doctest_MongoContainer_basic():
                          ObjectId('4e7e9d3ae138232d7b000000'),
                          u'mongopersist_container_test')}]
 
+      >>> 'stephan' in dm.root['c']
+      True
       >>> dm.root['c'].keys()
       [u'stephan']
       >>> dm.root['c']['stephan'].__parent__
@@ -206,6 +208,9 @@ def doctest_MongoContainer_basic():
       Traceback (most recent call last):
       ...
       KeyError: 'roy'
+
+      >>> 'roy' in dm.root['c']
+      False
 
     Now remove the item:
 
