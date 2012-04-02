@@ -447,6 +447,89 @@ def doctest_MongoContainer_find():
       <Person Stephan>
     """
 
+def doctest_IdNamesMongoContainer_basic():
+    """IdNamesMongoContainer: basic
+
+    This container uses the Mongo ObjectId as the name for each object. Since
+    ObjectIds are required to be unique within a collection, this is actually
+    a nice and cheap scenario.
+
+    Let's add a container to the root:
+
+      >>> transaction.commit()
+      >>> dm.root['c'] = container.IdNamesMongoContainer('person')
+
+    Let's now add a new person:
+
+      >>> dm.root['c'].add(Person(u'Stephan'))
+      >>> keys = dm.root['c'].keys()
+      >>> keys
+      [u'4e7ddf12e138237403000003']
+      >>> name = keys[0]
+      >>> dm.root['c'][name]
+      <Person Stephan>
+
+      >>> dm.root['c'].values()
+      [<Person Stephan>]
+
+      >>> dm.root['c'][name].__parent__
+      <mongopersist.zope.container.IdNamesMongoContainer object at 0x7fec50f86500>
+      >>> dm.root['c'][name].__name__
+      u'4e7ddf12e138237403000003'
+
+    It is a feature of the container that the item is immediately available
+    after assignment, but before the data is stored in the database. Let's
+    commit and access the data again:
+
+      >>> transaction.commit()
+
+      >>> db = dm._conn[DBNAME]
+      >>> pprint(list(db['person'].find()))
+      [{u'_id': ObjectId('4e7e9d3ae138232d7b000003'),
+        u'name': u'Stephan',
+        u'parent': DBRef(u'mongopersist.zope.container.IdNamesMongoContainer',
+                         ObjectId('4e7e9d3ae138232d7b000000'),
+                         u'mongopersist_container_test')}]
+
+    Notice how there is no "key" entry in the document. We get a usual key
+    error, if an object does not exist:
+
+      >>> dm.root['c']['4e7e9d3ae138232d7b000fff']
+      Traceback (most recent call last):
+      ...
+      KeyError: '4e7e9d3ae138232d7b000fff'
+
+      >>> '4e7e9d3ae138232d7b000fff' in dm.root['c']
+      False
+
+      >>> dm.root['c']['roy']
+      Traceback (most recent call last):
+      ...
+      KeyError: 'roy'
+
+      >>> 'roy' in dm.root['c']
+      False
+
+    Now remove the item:
+
+      >>> del dm.root['c'][name]
+
+    The changes are immediately visible.
+
+      >>> dm.root['c'].keys()
+      []
+      >>> dm.root['c'][name]
+      Traceback (most recent call last):
+      ...
+      KeyError: u'4e7e9d3ae138232d7b000003'
+
+    Make sure it is really gone after committing:
+
+      >>> transaction.commit()
+      >>> dm.root['c'].keys()
+      []
+    """
+
 def doctest_AllItemsMongoContainer_basic():
     """AllItemsMongoContainer: basic
 
@@ -601,8 +684,10 @@ def doctest_MongoContainer_with_ZODB():
 checker = renormalizing.RENormalizing([
     (re.compile(r'datetime.datetime(.*)'),
      'datetime.datetime(2011, 10, 1, 9, 45)'),
-    (re.compile(r"ObjectId\('[0-9a-f]*'\)"),
+    (re.compile(r"ObjectId\('[0-9a-f]{24}'\)"),
      "ObjectId('4e7ddf12e138237403000000')"),
+    (re.compile(r"u'[0-9a-f]{24}'"),
+     "u'4e7ddf12e138237403000000'"),
     (re.compile(r"object at 0x[0-9a-f]*>"),
      "object at 0x001122>"),
     (re.compile(r"zodb-[0-9a-f].*"),

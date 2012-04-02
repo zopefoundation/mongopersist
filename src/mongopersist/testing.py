@@ -24,8 +24,10 @@ from mongopersist import datamanager, serialize
 checker = renormalizing.RENormalizing([
     (re.compile(r'datetime.datetime(.*)'),
      'datetime.datetime(2011, 10, 1, 9, 45)'),
-    (re.compile(r"ObjectId\('[0-9a-f]*'\)"),
+    (re.compile(r"ObjectId\('[0-9a-f]{24}'\)"),
      "ObjectId('4e7ddf12e138237403000000')"),
+    (re.compile(r"u'[0-9a-f]{24}'"),
+     "u'4e7ddf12e138237403000000'"),
     (re.compile(r"object at 0x[0-9a-f]*>"),
      "object at 0x001122>"),
     ])

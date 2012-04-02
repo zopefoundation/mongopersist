@@ -27,6 +27,13 @@ CHANGES
   ``conflict_handler_factory`` to the data manager constructor. The factory
   needs to expect on argument, the data manager.
 
+- Feature: The new ``IdNamesMongoContainer`` class uses the natural Mongo
+  ObjectId as the name/key for the items in the container. No more messing
+  around with coming up or generating a name. Of course, if you specified
+  ``None`` as a key in the past, it already used the object id, but it was
+  sotred again in the mapping key field. Now the object id is used directly
+  everywhere.
+
 - Feature: Whenever ``setattr()`` is called on a persistent object, it is
   marked as changed even if the new value equals the old one. To minimize
   writes to MongoDB, the latest database state is compared to the new state
@@ -54,7 +61,7 @@ CHANGES
   accomplished by removing unnecessary database accesses, better caching and
   more efficient algorithms. This results in speedups between 4-25 times.
 
-  - When resolving the path to a klass, the result is now cached. More
+  - When resolving the path to a class, the result is now cached. More
     importantly, lookup failures are also cached mapping path ->
     ``None``. This is important, since an optimization the ``resolve()``
     method causes a lot of failing lookups.

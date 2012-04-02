@@ -15,7 +15,9 @@
 import UserDict
 import persistent
 import pymongo.dbref
+import pymongo.objectid
 import zope.component
+from bson.errors import InvalidId
 from rwproperty import getproperty, setproperty
 from zope.container import contained, sample
 from zope.container.interfaces import IContainer
@@ -154,6 +156,10 @@ class MongoContainer(contained.Contained,
             if key not in filter:
                 filter[key] = value
 
+    def _locate(self, obj, doc):
+        obj._v_key = doc[self._m_mapping_key]
+        obj._v_parent = self
+
     def _load_one(self, doc):
         # Create a DBRef object and then load the full state of the object.
         dbref = pymongo.dbref.DBRef(
@@ -162,22 +168,21 @@ class MongoContainer(contained.Contained,
         # Stick the doc into the _latest_states:
         self._m_jar._latest_states[dbref] = doc
         obj = self._m_jar.load(dbref)
-        obj._v_key = doc[self._m_mapping_key]
-        obj._v_parent = self
+        self._locate(obj, doc)
         return obj
 
     def __getitem__(self, key):
         filter = self._m_get_items_filter()
         filter[self._m_mapping_key] = key
-        coll = self.get_collection()
-        doc = coll.find_one(filter)
-        if doc is None:
+        obj = self.find_one(filter)
+        if obj is None:
             raise KeyError(key)
-        return self._load_one(doc)
+        return obj
 
     def _real_setitem(self, key, value):
         # This call by iteself caues the state to change _p_changed to True.
-        setattr(value, self._m_mapping_key, key)
+        if self._m_mapping_key is not None:
+            setattr(value, self._m_mapping_key, key)
         if self._m_parent_key is not None:
             setattr(value, self._m_parent_key, self._m_get_parent_key_value())
 
@@ -258,6 +263,53 @@ class MongoContainer(contained.Contained,
         if doc is None:
             return None
         return self._load_one(doc)
+
+
+class IdNamesMongoContainer(MongoContainer):
+    """A container that uses the Mongo ObjectId as the name/key."""
+    _m_mapping_key = None
+
+
+    @property
+    def _m_remove_documents(self):
+        # Objects must be removed, since removing the _id of a document is not
+        # allowed.
+        return True
+
+    def _locate(self, obj, doc):
+        obj._v_key = unicode(doc['_id'])
+        obj._v_parent = self
+
+    def __getitem__(self, key):
+        try:
+            id = pymongo.objectid.ObjectId(key)
+        except InvalidId:
+            raise KeyError(key)
+        filter = self._m_get_items_filter()
+        filter['_id'] = id
+        obj = self.find_one(filter)
+        if obj is None:
+            raise KeyError(key)
+        return obj
+
+    def __contains__(self, key):
+        try:
+            id = pymongo.objectid.ObjectId(key)
+        except InvalidId:
+            return False
+        return self.raw_find_one({'_id': id}, fields=()) is not None
+
+    def __iter__(self):
+        result = self.raw_find(fields=None)
+        for doc in result:
+            yield unicode(doc['_id'])
+
+    def iteritems(self):
+        result = self.raw_find()
+        for doc in result:
+            obj = self._load_one(doc)
+            yield unicode(doc['_id']), obj
+
 
 class AllItemsMongoContainer(MongoContainer):
     _m_parent_key = None

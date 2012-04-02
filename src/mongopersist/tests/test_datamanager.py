@@ -671,7 +671,8 @@ def doctest_MongoDataManager_abort_conflict_detection():
        >>> foo_A = dm.load(foo_ref)
        >>> foo_A.name = u'1'
        >>> coll.find_one({})
-       {u'_id': ObjectId('4e7dd'), u'_py_serial': 1, u'name': u'one'}
+       {u'_id': ObjectId('4e7ddf12e138237403000000'),
+        u'_py_serial': 1, u'name': u'one'}
 
     2. Transaction B comes along and modifies the object as well and commits:
 
@@ -684,14 +685,16 @@ def doctest_MongoDataManager_abort_conflict_detection():
        >>> foo_B.name = 'Eins'
        >>> dm_B.tpc_finish(None)
        >>> coll.find_one({})
-       {u'_id': ObjectId('4e7dd'), u'_py_serial': 2, u'name': u'Eins'}
+       {u'_id': ObjectId('4e7ddf12e138237403000000'), u'_py_serial': 2,
+        u'name': u'Eins'}
 
     3. If transcation A is later aborted, it does not reset the state, since
        it changed:
 
        >>> dm.abort(None)
        >>> coll.find_one({})
-       {u'_id': ObjectId('4e7dd'), u'_py_serial': 2, u'name': u'Eins'}
+       {u'_id': ObjectId('4e7ddf12e138237403000000'), u'_py_serial': 2,
+        u'name': u'Eins'}
 
     """
 
