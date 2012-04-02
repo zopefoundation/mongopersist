@@ -50,15 +50,41 @@ CHANGES
 - Feature: Added a little script to test performance. It is not very
   sophisticated, but it is sufficient for a first round of optimizations.
 
-- Performance: Drastically improved performance for collections that store
-  only one type of objects and where the documents do not store the type
-  (i.e. it is stored in the name map collection).
+- Feature: Massively improved performance on all levels. This was mainly
+  accomplished by removing unnecessary database accesses, better caching and
+  more efficient algorithms. This results in speedups between 4-25 times.
 
-- Performance: The Zope Container fast load via find() did not work correctly,
-  since setstate() did not change the state from ghost to active and thus the
-  state was loaded again from MongoDB and set on the object. Now we use the
-  new ``_latest_states`` cache to lookup a document when ``setstate()`` is
-  called through the proper channels.
+  - When resolving the path to a klass, the result is now cached. More
+    importantly, lookup failures are also cached mapping path ->
+    ``None``. This is important, since an optimization the ``resolve()``
+    method causes a lot of failing lookups.
+
+  - When resolving the dbref to a type, we try to resolve the dbref early
+    using the document, if we know that the documents within the collection
+    store their type path. This avoids frequent queries of the name map
+    collection when it is not needed.
+
+  - When getting the object document to read the class path, it will now read
+    the entire document and store it in the ``_latest_states`` dictionary, so
+    that other code may pick it up and use it. This should avoid superflous
+    reads from MongoDB.
+
+  - Drastically improved performance for collections that store only one type
+    of object and where the documents do not store the type (i.e. it is
+    stored in the name map collection).
+
+  - The Zope Container fast load via find() did not work correctly, since
+    setstate() did not change the state from ghost to active and thus the
+    state was loaded again from MongoDB and set on the object. Now we use the
+    new ``_latest_states`` cache to lookup a document when ``setstate()`` is
+    called through the proper channels. Now this "fast load" method truly
+    causes O(1) database lookups.
+
+  - Whenever the Mongo Object Id is used as a hash key, use the hash of the id
+    instead. The ``__cmp__()`` method of the ``ObjectId`` class is way too
+    slow.
+
+  - Cache collection name lookup from objects in the ``ObjectWriter`` class.
 
 - Bug: We have seen several occasions in production where we suddenly lost
   some state in some documents, which prohibited the objects from being

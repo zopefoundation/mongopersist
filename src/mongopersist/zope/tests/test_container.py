@@ -633,6 +633,10 @@ def tearDown(test):
     module.tearDown(test)
     test.globs['conn'].disconnect()
     serialize.SERIALIZERS.__init__()
+    serialize.OID_CLASS_LRU.__init__(20000)
+    serialize.COLLECTIONS_WITH_TYPE.__init__()
+    serialize.AVAILABLE_NAME_MAPPINGS.__init__()
+    serialize.PATH_RESOLVE_CACHE.__init__()
     exceptionformatter.DEBUG_EXCEPTION_FORMATTER = test.orig_DEBUG_EXCEPTION_FORMATTER
 
 def test_suite():

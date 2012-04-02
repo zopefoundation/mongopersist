@@ -53,3 +53,7 @@ def tearDown(test):
     test.globs['conn'].drop_database(test.globs['DBNAME'])
     test.globs['conn'].disconnect()
     serialize.SERIALIZERS.__init__()
+    serialize.OID_CLASS_LRU.__init__(20000)
+    serialize.COLLECTIONS_WITH_TYPE.__init__()
+    serialize.AVAILABLE_NAME_MAPPINGS.__init__()
+    serialize.PATH_RESOLVE_CACHE = {}

@@ -28,10 +28,14 @@ from zope.dottedname.resolve import resolve
 
 from mongopersist import interfaces
 
+IGNORE_IDENTICAL_DOCUMENTS = True
+ALWAYS_READ_FULL_DOC = True
+
 SERIALIZERS = []
 OID_CLASS_LRU = lru.LRUCache(20000)
-
-IGNORE_IDENTICAL_DOCUMENTS = True
+COLLECTIONS_WITH_TYPE = set()
+AVAILABLE_NAME_MAPPINGS = set()
+PATH_RESOLVE_CACHE = {}
 
 def get_dotted_name(obj):
     return obj.__module__+'.'+obj.__name__
@@ -73,11 +77,15 @@ class ObjectWriter(object):
         except AttributeError:
             return db_name, get_dotted_name(obj.__class__)
         # Make sure that the coll_name to class path mapping is available.
+        # Let's make sure we do the lookup only once, since the info will
+        # never change.
+        path = get_dotted_name(obj.__class__)
+        map = {'collection': coll_name, 'database': db_name, 'path': path}
+        map_hash = (db_name, coll_name, path)
+        if map_hash in AVAILABLE_NAME_MAPPINGS:
+            return db_name, coll_name
         db = self._jar._conn[self._jar.default_database]
         coll = db[self._jar.name_map_collection]
-        map = {'collection': coll_name,
-               'database': db_name,
-               'path': get_dotted_name(obj.__class__)}
         result = coll.find_one(map)
         if result is None:
             # If there is already a map for this collection, the next map must
@@ -88,6 +96,7 @@ class ObjectWriter(object):
                 setattr(obj, '_p_mongo_store_type', True)
             map['doc_has_type'] = getattr(obj, '_p_mongo_store_type', False)
             coll.save(map)
+        AVAILABLE_NAME_MAPPINGS.add(map_hash)
         return db_name, coll_name
 
     def get_non_persistent_state(self, obj, seen):
@@ -281,13 +290,29 @@ class ObjectReader(object):
         self._single_map_cache = {}
 
     def simple_resolve(self, path):
-        return resolve(path)
+        # We try to look up the klass from a cache. The important part here is
+        # that we also cache lookup failures as None, since they actually
+        # happen more frequently than a hit due to an optimization in the
+        # resolve() function.
+        try:
+            klass = PATH_RESOLVE_CACHE[path]
+        except KeyError:
+            try:
+                klass = resolve(path)
+            except ImportError:
+                PATH_RESOLVE_CACHE[path] = klass = None
+            else:
+                PATH_RESOLVE_CACHE[path] = klass
+        if klass is None:
+            raise ImportError(path)
+        return klass
 
     def resolve(self, dbref):
         __traceback_info__ = dbref
-        # 1. Check the global oid-based lookup cache.
+        # 1. Check the global oid-based lookup cache. Use the hash of the id,
+        #    since otherwise the comparison is way too expensive.
         try:
-            return OID_CLASS_LRU[dbref.id]
+            return OID_CLASS_LRU[hash(dbref.id)]
         except KeyError:
             pass
         # 2. Check the transient single map entry lookup cache.
@@ -295,19 +320,43 @@ class ObjectReader(object):
             return self._single_map_cache[(dbref.database, dbref.collection)]
         except KeyError:
             pass
-        # 3. Try to resolve the path directly.
+        # 3. If we have found the type within the document for a collection
+        #    before, let's try again. This will only hit, if we have more than
+        #    one type for the collection, otherwise the single map entry
+        #    lookup failed.
+        coll_key = (dbref.database, dbref.collection)
+        if coll_key in COLLECTIONS_WITH_TYPE:
+            if dbref in self._jar._latest_states:
+                obj_doc = self._jar._latest_states[dbref]
+            elif ALWAYS_READ_FULL_DOC:
+                obj_doc = self._jar.get_collection(
+                    dbref.database, dbref.collection).find_one(dbref.id)
+                self._jar._latest_states[dbref] = obj_doc
+            else:
+                obj_doc = self._jar\
+                    .get_collection(dbref.database, dbref.collection)\
+                    .find_one(dbref.id, fields=('_py_persistent_type',))
+            if '_py_persistent_type' in obj_doc:
+                klass = self.simple_resolve(obj_doc['_py_persistent_type'])
+                OID_CLASS_LRU[hash(dbref.id)] = klass
+                return klass
+        # 4. Try to resolve the path directly. We want to do this optimization
+        #    after all others, because trying it a lot is very expensive.
         try:
             return self.simple_resolve(dbref.collection)
         except ImportError:
             pass
-        # 4. No simple hits, so we have to do some leg work.
+        # 5. No simple hits, so we have to do some leg work.
         # Let's now try to look up the path from the collection to path
         # mapping
         db = self._jar._conn[self._jar.default_database]
         coll = db[self._jar.name_map_collection]
-        result = coll.find(
-            {'collection': dbref.collection, 'database': dbref.database})
-        count = result.count()
+        result = tuple(coll.find(
+            {'collection': dbref.collection, 'database': dbref.database}))
+        # Calling count() on a query result causes another database
+        # access. Since the result sets should be typically very small, let's
+        # load them all.
+        count = len(result)
         if count == 0:
             raise ImportError(dbref)
         elif count == 1:
@@ -315,7 +364,7 @@ class ObjectReader(object):
             # change later. But storing it for the length of the transaction
             # is fine, which is really useful if you load a lot of objects of
             # the same type.
-            klass = self.simple_resolve(result.next()['path'])
+            klass = self.simple_resolve(result[0]['path'])
             self._single_map_cache[(dbref.database, dbref.collection)] = klass
             return klass
         else:
@@ -323,13 +372,31 @@ class ObjectReader(object):
                 raise ImportError(dbref)
             # Multiple object types are stored in the collection. We have to
             # look at the object to find out the type.
-            obj_doc = self._jar\
-                .get_collection(dbref.database, dbref.collection).find_one(
-                    dbref.id, fields=('_py_persistent_type',))
+            if dbref in self._jar._latest_states:
+                # Optimization: If we have the latest state, then we just get
+                # this object document. This is used for fast loading or when
+                # resolving the same object path a second time. (The latter
+                # should never happen due to the object cache.)
+                obj_doc = self._jar._latest_states[dbref]
+            elif ALWAYS_READ_FULL_DOC:
+                # Optimization: Read the entire doc and stick it in the right
+                # place so that unghostifying the object later will not cause
+                # another database access.
+                obj_doc = self._jar\
+                    .get_collection(dbref.database, dbref.collection)\
+                    .find_one(dbref.id)
+                self._jar._latest_states[dbref] = obj_doc
+            else:
+                obj_doc = self._jar\
+                    .get_collection(dbref.database, dbref.collection)\
+                    .find_one(dbref.id, fields=('_py_persistent_type',))
             if '_py_persistent_type' in obj_doc:
+                COLLECTIONS_WITH_TYPE.add(coll_key)
                 klass = self.simple_resolve(obj_doc['_py_persistent_type'])
             else:
                 # Find the name-map entry where "doc_has_type" is False.
+                # Note: This case is really inefficient and does not allow any
+                # optimization. It should be avoided as much as possible.
                 for name_map_item in result:
                     if not name_map_item['doc_has_type']:
                         klass = self.simple_resolve(name_map_item['path'])

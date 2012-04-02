@@ -41,6 +41,13 @@ class Foo(persistent.Persistent):
 class Anything(persistent.Persistent):
     pass
 
+class StoreType(persistent.Persistent):
+    _p_mongo_collection = 'storetype'
+    _p_mongo_store_type = True
+
+class StoreType2(StoreType):
+    pass
+
 class Simple(object):
     pass
 
@@ -298,6 +305,37 @@ def doctest_ObjectWriter_get_state_Persistent():
       {'_py_persistent_type': 'mongopersist.tests.test_serialize.Top'}
     """
 
+def doctest_ObjectWriter_get_full_state():
+    """ObjectWriter: get_full_state()
+
+      >>> writer = serialize.ObjectWriter(dm)
+
+    Let's get the state of a regular object"
+
+      >>> any = Anything()
+      >>> any.name = 'anything'
+      >>> writer.get_full_state(any)
+      {'name': 'anything'}
+
+      >>> any_ref = dm.insert(any)
+      >>> writer.get_full_state(any)
+      {'_id': ObjectId('4f79368e37a08e1c91000000'), 'name': 'anything'}
+
+    Now an object that stores its type:
+
+      >>> st = StoreType()
+      >>> st.name = 'storetype'
+      >>> pprint.pprint(writer.get_full_state(st))
+      {'_py_persistent_type': 'mongopersist.tests.test_serialize.StoreType',
+       'name': 'storetype'}
+
+      >>> st_ref = dm.insert(st)
+      >>> pprint.pprint(writer.get_full_state(st))
+      {'_id': ObjectId('4f79372637a08e1cdf000001'),
+       '_py_persistent_type': 'mongopersist.tests.test_serialize.StoreType',
+       'name': 'storetype'}
+    """
+
 def doctest_ObjectWriter_store():
     """ObjectWriter: store()
 
@@ -385,6 +423,34 @@ def doctest_ObjectReader_simple_resolve():
       >>> reader = serialize.ObjectReader(dm)
       >>> reader.simple_resolve('mongopersist.tests.test_serialize.Top')
       <class 'mongopersist.tests.test_serialize.Top'>
+
+    After the original lookup, the result is cached:
+
+      >>> pprint.pprint(serialize.PATH_RESOLVE_CACHE)
+      {'mongopersist.tests.test_serialize.Top':
+          <class 'mongopersist.tests.test_serialize.Top'>}
+
+    Note that even lookup failures are cached.
+
+      >>> reader.simple_resolve('path.to.bad')
+      Traceback (most recent call last):
+      ...
+      ImportError: path.to.bad
+
+      >>> pprint.pprint(serialize.PATH_RESOLVE_CACHE)
+      {'mongopersist.tests.test_serialize.Top':
+          <class 'mongopersist.tests.test_serialize.Top'>,
+       'path.to.bad': None}
+
+    Resolving the path the second time uses the cache:
+
+      >>> reader.simple_resolve('mongopersist.tests.test_serialize.Top')
+      <class 'mongopersist.tests.test_serialize.Top'>
+
+      >>> reader.simple_resolve('path.to.bad')
+      Traceback (most recent call last):
+      ...
+      ImportError: path.to.bad
     """
 
 def doctest_ObjectReader_resolve_simple():
@@ -399,6 +465,50 @@ def doctest_ObjectReader_resolve_simple():
       >>> reader.resolve(ref)
       <class 'mongopersist.tests.test_serialize.Top'>
     """
+
+def doctest_ObjectReader_resolve_quick_when_type_in_doc():
+    """ObjectReader: resolve(): Quick lookup when type in document.
+
+    This methods resolves a collection name to its class. The collection name
+    can be either any arbitrary string or a Python path.
+
+      >>> st = StoreType()
+      >>> st_ref = dm.insert(st)
+      >>> st2 = StoreType2()
+      >>> st2_ref = dm.insert(st2)
+      >>> dm.reset()
+
+    Let's now resolve the references:
+
+      >>> reader = serialize.ObjectReader(dm)
+      >>> reader.resolve(st_ref)
+      <class 'mongopersist.tests.test_serialize.StoreType'>
+      >>> reader.resolve(st2_ref)
+      <class 'mongopersist.tests.test_serialize.StoreType2'>
+      >>> dm.reset()
+
+    The collection is now stored as one where objects save their type:
+
+      >>> serialize.COLLECTIONS_WITH_TYPE
+      set([('mongopersist_test', 'storetype')])
+
+    So here comes the trick. When fast-loading objects, the documents are made
+    immediately available in the ``_latest_states`` mapping. This allows our
+    quick resolve to utilize that document instead of looking it up in the
+    database:
+
+      >>> writer = serialize.ObjectWriter(dm)
+      >>> coll = dm._get_collection_from_object(st)
+      >>> dm._latest_states[st_ref] = writer.get_full_state(st)
+      >>> dm._latest_states[st2_ref] = writer.get_full_state(st2)
+
+      >>> reader = serialize.ObjectReader(dm)
+      >>> reader.resolve(st_ref)
+      <class 'mongopersist.tests.test_serialize.StoreType'>
+      >>> reader.resolve(st2_ref)
+      <class 'mongopersist.tests.test_serialize.StoreType2'>
+
+  """
 
 def doctest_ObjectReader_resolve_lookup():
     """ObjectReader: resolve(): lookup
@@ -457,6 +567,51 @@ def doctest_ObjectReader_resolve_lookup_with_multiple_maps():
       Traceback (most recent call last):
       ...
       ImportError: DBRef('Top', None, 'mongopersist_test')
+    """
+
+def doctest_ObjectReader_resolve_lookup_with_multiple_maps_dont_read_full():
+    """ObjectReader: resolve(): lookup with multiple maps entries
+
+    Multiple maps lookup with the ALWAYS_READ_FULL_DOC option set to False.
+
+      >>> serialize.ALWAYS_READ_FULL_DOC = False
+
+      >>> writer = serialize.ObjectWriter(dm)
+      >>> top = Top()
+      >>> writer.store(top)
+      DBRef('Top', ObjectId('4eb1e0f237a08e38dd000002'), 'mongopersist_test')
+      >>> top2 = Top2()
+      >>> writer.store(top2)
+      DBRef('Top', ObjectId('4eb1e10437a08e38e8000004'), 'mongopersist_test')
+
+      >>> reader = serialize.ObjectReader(dm)
+      >>> reader.resolve(top._p_oid)
+      <class 'mongopersist.tests.test_serialize.Top'>
+      >>> reader.resolve(top2._p_oid)
+      <class 'mongopersist.tests.test_serialize.Top2'>
+
+    Let's clear dome caches and try again:
+
+      >>> dm.reset()
+      >>> serialize.COLLECTIONS_WITH_TYPE.__init__()
+
+      >>> reader = serialize.ObjectReader(dm)
+      >>> reader.resolve(top._p_oid)
+      <class 'mongopersist.tests.test_serialize.Top'>
+      >>> reader.resolve(top2._p_oid)
+      <class 'mongopersist.tests.test_serialize.Top2'>
+
+    If the DBRef does not have an object id, then an import error is raised:
+
+      >>> reader.resolve(dbref.DBRef('Top', None, 'mongopersist_test'))
+      Traceback (most recent call last):
+      ...
+      ImportError: DBRef('Top', None, 'mongopersist_test')
+
+    Cleanup:
+
+      >>> serialize.ALWAYS_READ_FULL_DOC = True
+
     """
 
 def doctest_ObjectReader_get_non_persistent_object_py_type():

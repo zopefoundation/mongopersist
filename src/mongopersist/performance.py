@@ -25,6 +25,8 @@ import cProfile
 from mongopersist import conflict, datamanager
 from mongopersist.zope import container
 
+MULTIPLE_CLASSES = True
+
 class People(container.AllItemsMongoContainer):
     _p_mongo_collection = 'people'
     _m_database = 'performance'
@@ -32,7 +34,7 @@ class People(container.AllItemsMongoContainer):
 
 class Person(persistent.Persistent, container.MongoContained):
     _p_mongo_collection = 'person'
-    #_p_mongo_store_type = True
+    _p_mongo_store_type = True
 
     def __init__(self, name, age):
         self.name = name
@@ -41,6 +43,10 @@ class Person(persistent.Persistent, container.MongoContained):
     def __repr__(self):
         return '<%s %s @ %i [%s]>' %(
             self.__class__.__name__, self.name, self.age, self.__name__)
+
+class Person2(Person):
+    pass
+
 
 def run_basic_crud(options):
     conn = pymongo.Connection('localhost', 27017, tz_aware=False)
@@ -57,7 +63,8 @@ def run_basic_crud(options):
         transaction.begin()
         t1 = time.time()
         for idx in xrange(options.size):
-            people[None] = Person('Mr Number %.5i' %idx, random.randint(0, 100))
+            klass = Person if (MULTIPLE_CLASSES and idx % 2) else Person2
+            people[None] = klass('Mr Number %.5i' %idx, random.randint(0, 100))
         transaction.commit()
         t2 = time.time()
         print 'Insert:       %.4f secs' % (t2-t1)
@@ -80,16 +87,21 @@ def run_basic_crud(options):
     transaction.begin()
     t1 = time.time()
     [person.name for person in people.find()]
-    #cProfile.runctx('[person.name for person in people.find()]', globals(), locals())
+    #cProfile.runctx(
+    #    '[person.name for person in people.find()]', globals(), locals())
     t2 = time.time()
     print 'Fast Read:    %.4f secs' % (t2-t1)
 
     # Profile modification
     t1 = time.time()
-    for person in people.find():
-        person.name += 'X'
-        person.age += 1
-    transaction.commit()
+    def modify():
+        for person in list(people.find()):
+            person.name += 'X'
+            person.age += 1
+        transaction.commit()
+    modify()
+    #cProfile.runctx(
+    #    'modify()', globals(), locals())
     t2 = time.time()
     print 'Modification: %.4f secs' % (t2-t1)
 
