@@ -17,7 +17,7 @@ import doctest
 import pymongo
 import re
 import transaction
-from zope.testing import module, renormalizing
+from zope.testing import cleanup, module, renormalizing
 
 from mongopersist import datamanager, serialize
 
@@ -54,8 +54,13 @@ def tearDown(test):
     transaction.abort()
     test.globs['conn'].drop_database(test.globs['DBNAME'])
     test.globs['conn'].disconnect()
+    resetCaches()
+
+def resetCaches():
     serialize.SERIALIZERS.__init__()
     serialize.OID_CLASS_LRU.__init__(20000)
     serialize.COLLECTIONS_WITH_TYPE.__init__()
     serialize.AVAILABLE_NAME_MAPPINGS.__init__()
     serialize.PATH_RESOLVE_CACHE = {}
+
+cleanup.addCleanUp(resetCaches)
