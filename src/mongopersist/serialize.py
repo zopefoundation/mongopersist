@@ -43,6 +43,26 @@ def get_dotted_name(obj):
 class PersistentDict(persistent.dict.PersistentDict):
     _p_mongo_sub_object = True
 
+    def __init__(self, data=None, **kwargs):
+        # We optimize the case where data is not a dict. The original
+        # implementation always created an empty dict, which it then
+        # updated. This turned out to be expensive.
+        if data is None:
+            self.data = {}
+        elif isinstance(data, dict):
+            self.data = data.copy()
+        else:
+            self.data = dict(data)
+        if len(kwargs):
+            self.update(kwargs)
+
+    def __getitem__(self, key):
+        # The UserDict supports a __missing__() function, which I have never
+        # seen or used before, but it makes the method significantly
+        # slower. So let's not do that.
+        return self.data[key]
+
+
 class PersistentList(persistent.list.PersistentList):
     _p_mongo_sub_object = True
 
@@ -513,13 +533,14 @@ class ObjectReader(object):
         # Set the state.
         obj.__setstate__(state)
 
-    def get_ghost(self, dbref):
+    def get_ghost(self, dbref, klass=None):
         # If we can, we return the object from cache.
         try:
             return self._jar._object_cache[dbref.id]
         except KeyError:
             pass
-        klass = self.resolve(dbref)
+        if klass is None:
+            klass = self.resolve(dbref)
         obj = klass.__new__(klass)
         obj._p_jar = self._jar
         obj._p_oid = dbref

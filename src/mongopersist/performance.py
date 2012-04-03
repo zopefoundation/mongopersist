@@ -12,6 +12,7 @@
 #
 ##############################################################################
 """Mongo Persistence Performance Test"""
+from __future__ import absolute_import
 import optparse
 import persistent
 import pymongo
@@ -72,24 +73,25 @@ def run_basic_crud(options):
     else:
         people = dm.root['people']
 
-    # Profile slow read
-    transaction.begin()
-    t1 = time.time()
-    [people[name].name for name in people]
-    #cProfile.runctx(
-    #    '[people[name].name for name in people]', globals(), locals())
-    t2 = time.time()
-    transaction.commit()
-    print 'Slow Read:        %.4f secs' % (t2-t1)
-
-    # Profile fast read (values)
-    transaction.begin()
-    t1 = time.time()
-    [person.name for person in people.values()]
-    #cProfile.runctx(
-    #    '[person.name for person in people.find()]', globals(), locals())
-    t2 = time.time()
-    print 'Fast Read (values): %.4f secs' % (t2-t1)
+#    # Profile slow read
+#    transaction.begin()
+#    t1 = time.time()
+#    [people[name].name for name in people]
+#    #cProfile.runctx(
+#    #    '[people[name].name for name in people]', globals(), locals())
+#    t2 = time.time()
+#    transaction.commit()
+#    print 'Slow Read:        %.4f secs' % (t2-t1)
+#
+#    # Profile fast read (values)
+#    transaction.begin()
+#    t1 = time.time()
+#    [person.name for person in people.values()]
+#    #cProfile.runctx(
+#    #    '[person.name for person in people.find()]', globals(), locals())
+#    t2 = time.time()
+#    transaction.commit()
+#    print 'Fast Read (values): %.4f secs' % (t2-t1)
 
     # Profile fast read
     transaction.begin()
@@ -98,20 +100,41 @@ def run_basic_crud(options):
     #cProfile.runctx(
     #    '[person.name for person in people.find()]', globals(), locals())
     t2 = time.time()
+    cache = [
+        (person.__class__,
+         people._p_oid,
+         people._p_jar._writer.get_full_state(person),
+         )
+        for person in people.values()]
+    transaction.commit()
     print 'Fast Read (find):   %.4f secs' % (t2-t1)
 
-    # Profile modification
+    # Profile fast read (cache)
+    transaction.begin()
     t1 = time.time()
-    def modify():
-        for person in list(people.find()):
-            person.name += 'X'
-            person.age += 1
-        transaction.commit()
-    modify()
-    #cProfile.runctx(
-    #    'modify()', globals(), locals())
+    def read():
+        for klass, dbref, doc in cache:
+            person = people._p_jar._reader.get_ghost(dbref, klass)
+            people._p_jar._reader.set_ghost_state(person, doc)
+            person.name
+    cProfile.runctx('read()', globals(), locals())
+    #read()
     t2 = time.time()
-    print 'Modification:     %.4f secs' % (t2-t1)
+    transaction.commit()
+    print 'Fast Read (cache):  %.4f secs' % (t2-t1)
+
+#    # Profile modification
+#    t1 = time.time()
+#    def modify():
+#        for person in list(people.find()):
+#            person.name += 'X'
+#            person.age += 1
+#        transaction.commit()
+#    modify()
+#    #cProfile.runctx(
+#    #    'modify()', globals(), locals())
+#    t2 = time.time()
+#    print 'Modification:     %.4f secs' % (t2-t1)
 
     if options.delete:
         # Profile deletion
