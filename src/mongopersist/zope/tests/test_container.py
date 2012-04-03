@@ -29,7 +29,7 @@ from zope.app.testing import placelesssetup
 from zope.container import contained, btree
 from zope.testing import module, renormalizing
 
-from mongopersist import datamanager, interfaces, serialize
+from mongopersist import datamanager, interfaces, serialize, testing
 from mongopersist.zope import container
 
 class ApplicationRoot(container.SimpleMongoContainer):
@@ -715,19 +715,17 @@ def setUp(test):
 
     # silence this, otherwise half-baked objects raise exceptions
     # on trying to __repr__ missing attributes
-    test.orig_DEBUG_EXCEPTION_FORMATTER = exceptionformatter.DEBUG_EXCEPTION_FORMATTER
+    test.orig_DEBUG_EXCEPTION_FORMATTER = \
+        exceptionformatter.DEBUG_EXCEPTION_FORMATTER
     exceptionformatter.DEBUG_EXCEPTION_FORMATTER = 0
 
 def tearDown(test):
     placelesssetup.tearDown(test)
     module.tearDown(test)
     test.globs['conn'].disconnect()
-    serialize.SERIALIZERS.__init__()
-    serialize.OID_CLASS_LRU.__init__(20000)
-    serialize.COLLECTIONS_WITH_TYPE.__init__()
-    serialize.AVAILABLE_NAME_MAPPINGS.__init__()
-    serialize.PATH_RESOLVE_CACHE.__init__()
-    exceptionformatter.DEBUG_EXCEPTION_FORMATTER = test.orig_DEBUG_EXCEPTION_FORMATTER
+    testing.resetCaches()
+    exceptionformatter.DEBUG_EXCEPTION_FORMATTER = \
+        test.orig_DEBUG_EXCEPTION_FORMATTER
 
 def test_suite():
     return doctest.DocTestSuite(
