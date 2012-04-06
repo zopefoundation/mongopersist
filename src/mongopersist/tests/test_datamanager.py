@@ -265,6 +265,52 @@ def doctest_MongoDataManager_dump_only_on_real_change():
       {u'_id': ObjectId('...'), u'_py_serial': 3, u'name': u'fuh'}
     """
 
+def doctest_MongoDataManager_dump_only_on_real_change_no_py_serial():
+    r"""MongoDataManager: dump(): dump on real change only.
+
+    Quirk: some objects might not have _py_serial in their state
+
+    The data manager only writes data when we actually have a difference in
+    state.
+
+    We have to use a serial conflict handler, otherwise it is hard to check
+    whether data was written.
+
+      >>> dm.conflict_handler = conflict.SimpleSerialConflictHandler(dm)
+
+    Let's now add an object:
+
+      >>> foo = Foo('foo')
+      >>> foo_ref = dm.insert(foo)
+      >>> dm.tpc_finish(None)
+
+      >>> coll = dm._get_collection_from_object(foo)
+      >>> state = coll.find_one({})
+      >>> state
+      {u'_id': ObjectId('...'), u'_py_serial': 1, u'name': u'foo'}
+
+      >>> del state['_py_serial']
+      >>> coll.save(state)
+      ObjectId('...')
+
+      >>> coll.find_one({})
+      {u'_id': ObjectId('...'), u'name': u'foo'}
+
+    So the original state is in. Let's now modify an object:
+
+      >>> foo = dm.load(foo_ref)
+      >>> foo.name = 'Foo'
+      >>> foo._p_changed
+      True
+      >>> dm.tpc_finish(None)
+
+    _py_serial gets added silently, without an exception
+
+      >>> coll.find_one({})
+      {u'_id': ObjectId('...'), u'_py_serial': 1, u'name': u'Foo'}
+
+    """
+
 def doctest_MongoDataManager_flush():
     r"""MongoDataManager: flush()
 

@@ -84,9 +84,15 @@ class SerialConflictHandler(object):
             # This should never happen in a real running system.
             return False
         orig_state = orig_state.copy()
-        orig_state.pop(self.field_name)
+        try:
+            orig_state.pop(self.field_name)
+        except KeyError:
+            pass
         new_state = new_state.copy()
-        new_state.pop(self.field_name)
+        try:
+            new_state.pop(self.field_name)
+        except KeyError:
+            pass
         return orig_state == new_state
 
     def resolve(self, obj, orig_doc, cur_doc, new_doc):
