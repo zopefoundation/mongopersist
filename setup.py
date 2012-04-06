@@ -13,7 +13,11 @@ setup (
     author = "Stephan Richter",
     author_email = "stephan.richter@gmail.com",
     description = "Mongo Persistence Backend",
-    long_description=read('src', 'mongopersist', 'README.txt'),
+    long_description=(
+        read('src', 'mongopersist', 'README.txt')
+        + '\n\n' +
+        read('CHANGES.txt')
+        ),
     license = "ZPL 2.1",
     keywords = "mongo persistent ",
     classifiers = [
