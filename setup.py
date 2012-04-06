@@ -40,7 +40,7 @@ setup (
         ),
     install_requires = [
         'transaction >=1.1.0',
-        'lru',
+        'repoze.lru',
         'pymongo',
         'setuptools',
         'zope.dottedname',

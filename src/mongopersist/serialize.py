@@ -15,7 +15,7 @@
 from __future__ import absolute_import
 import copy_reg
 
-import lru
+import repoze.lru
 import persistent.interfaces
 import persistent.dict
 import persistent.list
@@ -32,7 +32,7 @@ IGNORE_IDENTICAL_DOCUMENTS = True
 ALWAYS_READ_FULL_DOC = True
 
 SERIALIZERS = []
-OID_CLASS_LRU = lru.LRUCache(20000)
+OID_CLASS_LRU = repoze.lru.LRUCache(20000)
 COLLECTIONS_WITH_TYPE = set()
 AVAILABLE_NAME_MAPPINGS = set()
 PATH_RESOLVE_CACHE = {}
@@ -278,7 +278,7 @@ class ObjectWriter(object):
             obj._p_oid = pymongo.dbref.DBRef(coll_name, doc_id, db_name)
             # Make sure that any other code accessing this object in this
             # session, gets the same instance.
-            self._jar._object_cache[doc_id] = obj
+            self._jar._object_cache[hash(obj._p_oid)] = obj
         else:
             doc['_id'] = obj._p_oid.id
             # We only want to store a new version of the document, if it is
@@ -331,10 +331,9 @@ class ObjectReader(object):
         __traceback_info__ = dbref
         # 1. Check the global oid-based lookup cache. Use the hash of the id,
         #    since otherwise the comparison is way too expensive.
-        try:
-            return OID_CLASS_LRU[hash(dbref.id)]
-        except KeyError:
-            pass
+        klass = OID_CLASS_LRU.get(hash(dbref))
+        if klass is not None:
+            return klass
         # 2. Check the transient single map entry lookup cache.
         try:
             return self._single_map_cache[(dbref.database, dbref.collection)]
@@ -358,7 +357,7 @@ class ObjectReader(object):
                     .find_one(dbref.id, fields=('_py_persistent_type',))
             if '_py_persistent_type' in obj_doc:
                 klass = self.simple_resolve(obj_doc['_py_persistent_type'])
-                OID_CLASS_LRU[hash(dbref.id)] = klass
+                OID_CLASS_LRU.put(hash(dbref), klass)
                 return klass
         # 4. Try to resolve the path directly. We want to do this optimization
         #    after all others, because trying it a lot is very expensive.
@@ -423,7 +422,7 @@ class ObjectReader(object):
                         break
                 else:
                     raise ImportError(dbref)
-            OID_CLASS_LRU[dbref.id] = klass
+            OID_CLASS_LRU.put(hash(dbref), klass)
             return klass
 
     def get_non_persistent_object(self, state, obj):
@@ -536,7 +535,7 @@ class ObjectReader(object):
     def get_ghost(self, dbref, klass=None):
         # If we can, we return the object from cache.
         try:
-            return self._jar._object_cache[dbref.id]
+            return self._jar._object_cache[hash(dbref)]
         except KeyError:
             pass
         if klass is None:
@@ -551,5 +550,5 @@ class ObjectReader(object):
         obj._p_mongo_collection = dbref.collection
         # Adding the object to the cache is very important, so that we get the
         # same object reference throughout the transaction.
-        self._jar._object_cache[dbref.id] = obj
+        self._jar._object_cache[hash(dbref)] = obj
         return obj

@@ -5,7 +5,15 @@ CHANGES
 0.7.1 (2012-04-??)
 ------------------
 
-- ...
+- Performance: Switched to ``repoze.lru`` (from ``lru``), which is much
+  faster.
+
+- Performance: To avoid excessive hash computations, we now use the hash of
+  the ``DBRef`` references as cache keys.
+
+- Bug: ``ObjectId`` ids are not guarantted to be unique accross
+  collections. Thus they are a bad key for global caches. So we use full
+  ``DBRef`` references instead.
 
 0.7.0 (2012-04-02)
 ------------------

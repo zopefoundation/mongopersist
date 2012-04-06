@@ -12,6 +12,7 @@
 #
 ##############################################################################
 """Mongo Mapping Implementations"""
+from __future__ import absolute_import
 import UserDict
 import pymongo
 
