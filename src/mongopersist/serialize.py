@@ -15,13 +15,13 @@
 from __future__ import absolute_import
 import copy_reg
 
-import repoze.lru
+import bson.dbref
+import bson.objectid
 import persistent.interfaces
 import persistent.dict
 import persistent.list
 import pymongo.binary
-import pymongo.dbref
-import pymongo.objectid
+import repoze.lru
 import types
 import zope.interface
 from zope.dottedname.resolve import resolve
@@ -451,14 +451,14 @@ class ObjectReader(object):
         return sub_obj
 
     def get_object(self, state, obj):
-        if isinstance(state, pymongo.objectid.ObjectId):
+        if isinstance(state, bson.objectid.ObjectId):
             # The object id is special. Preserve it.
             return state
         if isinstance(state, pymongo.binary.Binary):
             # Binary data in Python 2 is presented as a string. We will
             # convert back to binary when serializing again.
             return str(state)
-        if isinstance(state, pymongo.dbref.DBRef):
+        if isinstance(state, bson.dbref.DBRef):
             # Load a persistent object. Using the get_ghost() method, so that
             # caching is properly applied.
             return self.get_ghost(state)
