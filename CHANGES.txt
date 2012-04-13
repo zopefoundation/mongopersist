@@ -2,10 +2,22 @@
 CHANGES
 =======
 
-0.7.1 (2012-04-??)
+0.7.1 (2012-04-13)
 ------------------
 
-- Bug: don't err on missing _py_serial on older states from mongo
+- Performance: Improved the profiler a bit by allowing to disable modification
+  of records as well.
+
+- Performance: Added caching of ``_m_jar`` lookups in Mongo Containers, since
+  the computation turned out to be significantly expensive.
+
+- Performance: Use lazy hash computation for DBRef. Also, disable support for
+  arbitrary keyword arguments. This makes roughly a 2-4% difference in object
+  loading time.
+
+- Bug: An error occurred when ``_py_serial`` was missing. This was 
+  possible due to a bug in version 0.6. It also protects against third 
+  party software which is not aware of our meta-data.
 
 - Performance: Switched to ``repoze.lru`` (from ``lru``), which is much
   faster.

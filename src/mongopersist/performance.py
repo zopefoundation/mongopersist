@@ -28,10 +28,17 @@ from mongopersist.zope import container
 
 MULTIPLE_CLASSES = True
 
+
 class People(container.AllItemsMongoContainer):
     _p_mongo_collection = 'people'
     _m_database = 'performance'
     _m_collection = 'person'
+
+class Address(persistent.Persistent):
+    _p_mongo_collection = 'address'
+
+    def __init__(self, city):
+        self.city = city
 
 class Person(persistent.Persistent, container.MongoContained):
     _p_mongo_collection = 'person'
@@ -40,6 +47,7 @@ class Person(persistent.Persistent, container.MongoContained):
     def __init__(self, name, age):
         self.name = name
         self.age = age
+        self.address = Address('Boston %i' %age)
 
     def __repr__(self):
         return '<%s %s @ %i [%s]>' %(
@@ -47,7 +55,6 @@ class Person(persistent.Persistent, container.MongoContained):
 
 class Person2(Person):
     pass
-
 
 def run_basic_crud(options):
     conn = pymongo.Connection('localhost', 27017, tz_aware=False)
@@ -73,25 +80,25 @@ def run_basic_crud(options):
     else:
         people = dm.root['people']
 
-#    # Profile slow read
-#    transaction.begin()
-#    t1 = time.time()
-#    [people[name].name for name in people]
-#    #cProfile.runctx(
-#    #    '[people[name].name for name in people]', globals(), locals())
-#    t2 = time.time()
-#    transaction.commit()
-#    print 'Slow Read:        %.4f secs' % (t2-t1)
-#
-#    # Profile fast read (values)
-#    transaction.begin()
-#    t1 = time.time()
-#    [person.name for person in people.values()]
-#    #cProfile.runctx(
-#    #    '[person.name for person in people.find()]', globals(), locals())
-#    t2 = time.time()
-#    transaction.commit()
-#    print 'Fast Read (values): %.4f secs' % (t2-t1)
+    # Profile slow read
+    transaction.begin()
+    t1 = time.time()
+    [people[name].name for name in people]
+    #cProfile.runctx(
+    #    '[people[name].name for name in people]', globals(), locals())
+    t2 = time.time()
+    transaction.commit()
+    print 'Slow Read:        %.4f secs' % (t2-t1)
+
+    # Profile fast read (values)
+    transaction.begin()
+    t1 = time.time()
+    [person.name for person in people.values()]
+    #cProfile.runctx(
+    #    '[person.name for person in people.find()]', globals(), locals())
+    t2 = time.time()
+    transaction.commit()
+    print 'Fast Read (values): %.4f secs' % (t2-t1)
 
     # Profile fast read
     transaction.begin()
@@ -100,41 +107,22 @@ def run_basic_crud(options):
     #cProfile.runctx(
     #    '[person.name for person in people.find()]', globals(), locals())
     t2 = time.time()
-    cache = [
-        (person.__class__,
-         people._p_oid,
-         people._p_jar._writer.get_full_state(person),
-         )
-        for person in people.values()]
     transaction.commit()
     print 'Fast Read (find):   %.4f secs' % (t2-t1)
 
-    # Profile fast read (cache)
-    transaction.begin()
-    t1 = time.time()
-    def read():
-        for klass, dbref, doc in cache:
-            person = people._p_jar._reader.get_ghost(dbref, klass)
-            people._p_jar._reader.set_ghost_state(person, doc)
-            person.name
-    cProfile.runctx('read()', globals(), locals())
-    #read()
-    t2 = time.time()
-    transaction.commit()
-    print 'Fast Read (cache):  %.4f secs' % (t2-t1)
-
-#    # Profile modification
-#    t1 = time.time()
-#    def modify():
-#        for person in list(people.find()):
-#            person.name += 'X'
-#            person.age += 1
-#        transaction.commit()
-#    modify()
-#    #cProfile.runctx(
-#    #    'modify()', globals(), locals())
-#    t2 = time.time()
-#    print 'Modification:     %.4f secs' % (t2-t1)
+    if options.modify:
+        # Profile modification
+        t1 = time.time()
+        def modify():
+            for person in list(people.find()):
+                person.name += 'X'
+                person.age += 1
+            transaction.commit()
+        modify()
+        #cProfile.runctx(
+        #    'modify()', globals(), locals())
+        t2 = time.time()
+        print 'Modification:     %.4f secs' % (t2-t1)
 
     if options.delete:
         # Profile deletion
@@ -157,6 +145,11 @@ parser.add_option(
     '--no-reload', action='store_false',
     dest='reload', default=True,
     help='A flag, when set, causes the DB not to be reloaded.')
+
+parser.add_option(
+    '--no-modify', action='store_false',
+    dest='modify', default=True,
+    help='A flag, when set, causes the data not to be modified.')
 
 parser.add_option(
     '--no-delete', action='store_false',
