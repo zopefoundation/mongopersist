@@ -2,6 +2,11 @@
 CHANGES
 =======
 
+0.7.2 (unreleased)
+------------------
+
+- ...
+
 0.7.1 (2012-04-13)
 ------------------
 
@@ -15,9 +20,9 @@ CHANGES
   arbitrary keyword arguments. This makes roughly a 2-4% difference in object
   loading time.
 
-- Bug: An error occurred when ``_py_serial`` was missing. This was 
-  possible due to a bug in version 0.6. It also protects against third 
-  party software which is not aware of our meta-data.
+- Bug: An error occurred when ``_py_serial`` was missing. This was possible
+  due to a bug in version 0.6. It also protects against third party software
+  which is not aware of our meta-data.
 
 - Performance: Switched to ``repoze.lru`` (from ``lru``), which is much
   faster.
