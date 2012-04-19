@@ -118,16 +118,17 @@ class MongoContainer(contained.Contained,
 
     @property
     def _m_jar(self):
-        if not hasattr(self, '_v_m_jar'):
+        if not hasattr(self, '_v_mdmp'):
             # If the container is in a Mongo storage hierarchy, then getting
             # the datamanager is easy, otherwise we do an adapter lookup.
             if interfaces.IMongoDataManager.providedBy(self._p_jar):
-                self._v_m_jar = self._p_jar
-            else:
-                provider = zope.component.getUtility(
+                return self._p_jar
+
+            # cache result of expensive component lookup
+            self._v_mdmp = zope.component.getUtility(
                     interfaces.IMongoDataManagerProvider)
-                self._v_m_jar = provider.get()
-        return self._v_m_jar
+
+        return self._v_mdmp.get()
 
     def get_collection(self):
         db_name = self._m_database or self._m_jar.default_database
