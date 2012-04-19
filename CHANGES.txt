@@ -2,10 +2,12 @@
 CHANGES
 =======
 
-0.7.2 (unreleased)
+0.7.2 (2012-04-19)
 ------------------
 
-- ...
+- Bug: avoid caching MongoDataManager instances in mongo container to avoid
+  multiple MongoDataManagers in the single transaction in multithreaded
+  environment. Cache IMongoDataManagerProvider instead.
 
 0.7.1 (2012-04-13)
 ------------------
