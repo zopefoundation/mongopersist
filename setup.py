@@ -9,7 +9,7 @@ def read(*rnames):
 
 setup (
     name='mongopersist',
-    version='0.7.2',
+    version='0.7.3.dev0',
     author = "Stephan Richter",
     author_email = "stephan.richter@gmail.com",
     description = "Mongo Persistence Backend",
