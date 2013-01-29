@@ -19,11 +19,12 @@ import transaction.interfaces
 import types
 import zope.interface
 import zope.schema
-from pymongo import objectid, dbref
+from bson import objectid, dbref
 
 MONGO_NATIVE_TYPES = (
     int, float, unicode, datetime.datetime, types.NoneType,
     objectid.ObjectId, dbref.DBRef)
+
 
 class ConflictError(transaction.interfaces.TransientError):
     """An error raised when a write conflict is detected."""
@@ -50,19 +51,20 @@ class ConflictError(transaction.interfaces.TransientError):
 
     def __str__(self):
         extras = [
-            'oid %s' %self.object._p_oid,
-            'class %s' %self.object.__class__.__name__,
-            'orig serial %s' %self.orig_serial,
-            'cur serial %s' %self.cur_serial,
-            'new serial %s' %self.new_serial]
+            'oid %s' % self.object._p_oid,
+            'class %s' % self.object.__class__.__name__,
+            'orig serial %s' % self.orig_serial,
+            'cur serial %s' % self.cur_serial,
+            'new serial %s' % self.new_serial]
         return "%s (%s)" % (self.message, ", ".join(extras))
 
     def __repr__(self):
-        return '%s: %s' %(self.__class__.__name__, self)
+        return '%s: %s' % (self.__class__.__name__, self)
 
 
 class CircularReferenceError(Exception):
     pass
+
 
 class IConflictHandler(zope.interface.Interface):
 
@@ -103,6 +105,7 @@ class IConflictHandler(zope.interface.Interface):
         While calling this method, the conflict handler may try to resolve
         conflicts.
         """
+
 
 class IResolvingConflictHandler(IConflictHandler):
     """A conflict handler that is able to resolve conflicts."""

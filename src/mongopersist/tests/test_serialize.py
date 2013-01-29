@@ -17,7 +17,7 @@ import doctest
 import persistent
 import pprint
 
-from pymongo import binary, dbref, objectid
+from bson import binary, dbref, objectid
 
 from mongopersist import conflict, serialize, testing
 

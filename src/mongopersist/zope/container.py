@@ -14,16 +14,17 @@
 """Mongo Persistence Zope Containers"""
 import UserDict
 import persistent
-import pymongo.dbref
-import pymongo.objectid
+import bson.dbref
+import bson.objectid
 import zope.component
 from bson.errors import InvalidId
 from rwproperty import getproperty, setproperty
 from zope.container import contained, sample
 from zope.container.interfaces import IContainer
 
-from mongopersist import interfaces, serialize
+from mongopersist import interfaces
 from mongopersist.zope import interfaces as zinterfaces
+
 
 class MongoContained(contained.Contained):
 
@@ -165,7 +166,7 @@ class MongoContainer(contained.Contained,
 
     def _load_one(self, doc):
         # Create a DBRef object and then load the full state of the object.
-        dbref = pymongo.dbref.DBRef(
+        dbref = bson.dbref.DBRef(
             self._m_collection, doc['_id'],
             self._m_database or self._m_jar.default_database)
         # Stick the doc into the _latest_states:
@@ -285,7 +286,7 @@ class IdNamesMongoContainer(MongoContainer):
 
     def __getitem__(self, key):
         try:
-            id = pymongo.objectid.ObjectId(key)
+            id = bson.objectid.ObjectId(key)
         except InvalidId:
             raise KeyError(key)
         filter = self._m_get_items_filter()
@@ -297,7 +298,7 @@ class IdNamesMongoContainer(MongoContainer):
 
     def __contains__(self, key):
         try:
-            id = pymongo.objectid.ObjectId(key)
+            id = bson.objectid.ObjectId(key)
         except InvalidId:
             return False
         return self.raw_find_one({'_id': id}, fields=()) is not None

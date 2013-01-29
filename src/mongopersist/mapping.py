@@ -14,9 +14,8 @@
 """Mongo Mapping Implementations"""
 from __future__ import absolute_import
 import UserDict
-import pymongo
+import bson.dbref
 
-from mongopersist import interfaces
 
 class MongoCollectionMapping(UserDict.DictMixin, object):
     __mongo_database__ = None
@@ -41,7 +40,7 @@ class MongoCollectionMapping(UserDict.DictMixin, object):
         if doc is None:
             raise KeyError(key)
         db_name = self.__mongo_database__ or self._m_jar.default_database
-        dbref = pymongo.dbref.DBRef(
+        dbref = bson.dbref.DBRef(
             self.__mongo_collection__, doc['_id'], db_name)
         return self._m_jar._reader.get_ghost(dbref)
 

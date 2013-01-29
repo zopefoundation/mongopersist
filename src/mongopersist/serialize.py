@@ -20,7 +20,8 @@ import bson.objectid
 import persistent.interfaces
 import persistent.dict
 import persistent.list
-import pymongo.binary
+import bson.dbref
+import bson.binary
 import repoze.lru
 import types
 import zope.interface
@@ -37,8 +38,10 @@ COLLECTIONS_WITH_TYPE = set()
 AVAILABLE_NAME_MAPPINGS = set()
 PATH_RESOLVE_CACHE = {}
 
+
 def get_dotted_name(obj):
-    return obj.__module__+'.'+obj.__name__
+    return obj.__module__ + '.' + obj.__name__
+
 
 class PersistentDict(persistent.dict.PersistentDict):
     _p_mongo_sub_object = True
@@ -187,7 +190,7 @@ class ObjectWriter(object):
                 obj.decode('utf-8')
                 return obj
             except UnicodeError:
-                return pymongo.binary.Binary(obj)
+                return bson.binary.Binary(obj)
 
         # Some objects might not naturally serialize well and create a very
         # ugly Mongo entry. Thus, we allow custom serializers to be
@@ -275,7 +278,7 @@ class ObjectWriter(object):
             doc_id = coll.insert(doc)
             stored = True
             obj._p_jar = self._jar
-            obj._p_oid = pymongo.dbref.DBRef(coll_name, doc_id, db_name)
+            obj._p_oid = bson.dbref.DBRef(coll_name, doc_id, db_name)
             # Make sure that any other code accessing this object in this
             # session, gets the same instance.
             self._jar._object_cache[hash(obj._p_oid)] = obj
@@ -454,7 +457,7 @@ class ObjectReader(object):
         if isinstance(state, bson.objectid.ObjectId):
             # The object id is special. Preserve it.
             return state
-        if isinstance(state, pymongo.binary.Binary):
+        if isinstance(state, bson.binary.Binary):
             # Binary data in Python 2 is presented as a string. We will
             # convert back to binary when serializing again.
             return str(state)

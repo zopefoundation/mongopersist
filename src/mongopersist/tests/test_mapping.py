@@ -16,7 +16,7 @@ import doctest
 import persistent
 import pprint
 import transaction
-from pymongo import dbref, objectid
+from bson import dbref, objectid
 
 from mongopersist import testing, mapping
 

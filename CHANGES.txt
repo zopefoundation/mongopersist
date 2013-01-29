@@ -5,7 +5,8 @@ CHANGES
 0.7.3 (unreleased)
 ------------------
 
-- ...
+- update to latest package versions
+  biggest change: ``pymongo`` does not reexport ``objectid`` and ``dbref``
 
 0.7.2 (2012-04-19)
 ------------------

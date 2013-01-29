@@ -15,7 +15,7 @@
 import doctest
 import persistent
 import transaction
-from pymongo import dbref, objectid
+from bson import dbref, objectid
 
 from mongopersist import conflict, interfaces, testing, datamanager
 
