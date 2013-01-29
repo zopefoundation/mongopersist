@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.7.3 (unreleased)
+0.7.3 (2013-01-29)
 ------------------
 
 - update to latest package versions
