@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.7.5 (unreleased)
+0.7.5 (2013-02-06)
 ------------------
 
 - Added, cleaned tests
