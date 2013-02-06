@@ -5,7 +5,9 @@ CHANGES
 0.7.5 (unreleased)
 ------------------
 
-- ...
+- Added, cleaned tests
+
+- Re-release after missing files in 0.7.4
 
 0.7.4 (2013-02-05)
 ------------------

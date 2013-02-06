@@ -54,131 +54,6 @@ class Person(container.MongoContained, SimplePerson):
     pass
 
 
-class Campaigns(container.MongoContainer):
-
-    _m_collection = 'campaigns'
-
-    def add(self, campaign):
-        self[campaign.name] = campaign
-
-
-class MongoItem(container.MongoContained,
-                persistent.Persistent):
-    pass
-
-class Campaign(MongoItem, container.MongoContainer):
-
-    _m_collection = 'persons'
-    _p_mongo_collection = 'campaigns'
-
-    def __init__(self, name):
-        self.name = name
-
-    def __repr__(self):
-        return '<%s %s>' %(self.__class__.__name__, self.name)
-
-
-def doctest_Campaign():
-    """MongoContainer: basic
-
-    Let's make sure events are fired correctly:
-
-      >>> zope.component.provideHandler(handleObjectModifiedEvent)
-
-    Let's add a container to the root:
-
-      >>> transaction.commit()
-      >>> dm.root['c'] = Campaigns()
-
-      >>> db = dm._conn[DBNAME]
-      >>> pprint(list(db['campaigns'].find()))
-      []
-
-      [{u'_id': ObjectId('4e7ddf12e138237403000000'),
-        u'_m_collection': u'person'}]
-
-    It is unfortunate that the '_m_collection' attribute is set. This is
-    avoidable using a sub-class.
-
-      >>> dm.root['c'][u'one'] = Campaign(u'one')
-      ContainerModifiedEvent: <...Campaigns ...>
-      >>> dm.root['c'].keys()
-      [u'one']
-      >>> dm.root['c'][u'one']
-      <Campaign one>
-
-      >>> dm.root['c']['one'].__parent__
-      <mongopersist.zope.tests.test_container.Campaigns object at 0x001122>
-      >>> dm.root['c']['one'].__name__
-      u'one'
-
-    It is a feature of the container that the item is immediately available
-    after assignment, but before the data is stored in the database. Let's
-    commit and access the data again:
-
-      >>> transaction.commit()
-
-      >>> pprint(list(db['campaigns'].find()))
-      [{u'_id': ObjectId('4e7ddf12e138237403000000'),
-        u'key': u'one',
-        u'name': u'one',
-        u'parent': DBRef(u'mongopersist.zope.tests.test_container.Campaigns',
-            ObjectId('4e7ddf12e138237403000000'),
-            u'mongopersist_container_test')}]
-
-      >>> 'one' in dm.root['c']
-      True
-      >>> dm.root['c'].keys()
-      [u'one']
-      >>> dm.root['c']['one'].__parent__
-      <mongopersist.zope.tests.test_container.Campaigns object at 0x001122>
-      >>> dm.root['c']['one'].__name__
-      u'one'
-
-    We get a usual key error, if an object does not exist:
-
-      >>> dm.root['c']['roy']
-      Traceback (most recent call last):
-      ...
-      KeyError: 'roy'
-
-      >>> 'roy' in dm.root['c']
-      False
-
-    Now remove the item:
-
-      >>> del dm.root['c']['one']
-      ContainerModifiedEvent: <...Campaigns ...>
-
-    The changes are immediately visible.
-
-      >>> dm.root['c'].keys()
-      []
-      >>> dm.root['c']['one']
-      Traceback (most recent call last):
-      ...
-      KeyError: 'one'
-
-    Make sure it is really gone after committing:
-
-      >>> transaction.commit()
-      >>> dm.root['c'].keys()
-      []
-
-    Check adding of more objects:
-
-      >>> dm.root['c'][u'1'] = c1 = Campaign(u'One')
-      ContainerModifiedEvent: <...Campaigns ...>
-      >>> dm.root['c'][u'2'] = c2 = Campaign(u'Two')
-      ContainerModifiedEvent: <...Campaigns ...>
-      >>> dm.root['c'][u'3'] = Campaign(u'Three')
-      ContainerModifiedEvent: <...Campaigns ...>
-
-      >>> sorted(dm.root['c'].keys())
-      [u'1', u'2', u'3']
-    """
-
-
 def doctest_SimpleMongoContainer_basic():
     """SimpleMongoContainer: basic
 
@@ -831,6 +706,168 @@ def doctest_MongoContainer_with_ZODB():
 
     Note that we produced a nice hex-presentation of the ZODB's OID.
     """
+
+
+# classes for doctest_Realworldish
+class Campaigns(container.MongoContainer):
+    _m_collection = 'campaigns'
+
+    def __init__(self, name):
+        self.name = name
+
+    def add(self, campaign):
+        self[campaign.name] = campaign
+
+    def __repr__(self):
+        return '<%s %s>' % (self.__class__.__name__, self.name)
+
+
+class MongoItem(container.MongoContained,
+                persistent.Persistent):
+    pass
+
+
+class Campaign(MongoItem, container.MongoContainer):
+    _m_collection = 'persons'
+    _p_mongo_collection = 'campaigns'
+
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return '<%s %s>' % (self.__class__.__name__, self.name)
+
+
+class PersonItem(MongoItem):
+    _p_mongo_collection = 'persons'
+
+    def __init__(self, name):
+        self.name = name
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return '<%s %s>' % (self.__class__.__name__, self)
+
+
+def doctest_Realworldish():
+    """Let's see some real worldish hierarchic structure persisted
+
+    Let's make sure events are fired correctly:
+
+      >>> zope.component.provideHandler(handleObjectModifiedEvent)
+
+    Let's add a container to the root:
+
+      >>> transaction.commit()
+      >>> dm.root['c'] = Campaigns('foobar')
+
+      >>> db = dm._conn[DBNAME]
+      >>> pprint(list(db['mongopersist.zope.tests.test_container.Campaigns'].find()))
+      [{u'_id': ObjectId('4e7ddf12e138237403000000'),
+        u'name': u'foobar'}]
+
+    It is unfortunate that the '_m_collection' attribute is set. This is
+    avoidable using a sub-class.
+
+      >>> dm.root['c'][u'one'] = Campaign(u'one')
+      ContainerModifiedEvent: <...Campaigns ...>
+      >>> dm.root['c'].keys()
+      [u'one']
+      >>> dm.root['c'][u'one']
+      <Campaign one>
+
+      >>> dm.root['c']['one'].__parent__
+      <Campaigns foobar>
+      >>> dm.root['c']['one'].__name__
+      u'one'
+
+    It is a feature of the container that the item is immediately available
+    after assignment, but before the data is stored in the database. Let's
+    commit and access the data again:
+
+      >>> transaction.commit()
+
+      >>> pprint(list(db['campaigns'].find()))
+      [{u'_id': ObjectId('4e7ddf12e138237403000000'),
+        u'key': u'one',
+        u'name': u'one',
+        u'parent': DBRef(u'mongopersist.zope.tests.test_container.Campaigns',
+            ObjectId('4e7ddf12e138237403000000'),
+            u'mongopersist_container_test')}]
+
+      >>> 'one' in dm.root['c']
+      True
+      >>> dm.root['c'].keys()
+      [u'one']
+      >>> dm.root['c']['one'].__parent__
+      <Campaigns foobar>
+      >>> dm.root['c']['one'].__name__
+      u'one'
+
+    We get a usual key error, if an object does not exist:
+
+      >>> dm.root['c']['roy']
+      Traceback (most recent call last):
+      ...
+      KeyError: 'roy'
+
+      >>> 'roy' in dm.root['c']
+      False
+
+    Now remove the item:
+
+      >>> del dm.root['c']['one']
+      ContainerModifiedEvent: <...Campaigns ...>
+
+    The changes are immediately visible.
+
+      >>> dm.root['c'].keys()
+      []
+      >>> dm.root['c']['one']
+      Traceback (most recent call last):
+      ...
+      KeyError: 'one'
+
+    Make sure it is really gone after committing:
+
+      >>> transaction.commit()
+      >>> dm.root['c'].keys()
+      []
+
+    Check adding of more objects:
+
+      >>> dm.root['c'][u'1'] = c1 = Campaign(u'One')
+      ContainerModifiedEvent: <...Campaigns ...>
+      >>> dm.root['c'][u'2'] = c2 = Campaign(u'Two')
+      ContainerModifiedEvent: <...Campaigns ...>
+      >>> dm.root['c'][u'3'] = Campaign(u'Three')
+      ContainerModifiedEvent: <...Campaigns ...>
+
+      >>> sorted(dm.root['c'].keys())
+      [u'1', u'2', u'3']
+
+    Check adding of more subitems:
+
+      >>> stephan = c1['stephan'] = PersonItem('Stephan')
+      ContainerModifiedEvent: <Campaign One>
+      >>> roy = c1['roy'] = PersonItem('Roy')
+      ContainerModifiedEvent: <Campaign One>
+
+      >>> sorted(c1.keys())
+      [u'roy', u'stephan']
+
+      >>> adam = c2['adam'] = PersonItem('Adam')
+      ContainerModifiedEvent: <Campaign Two>
+
+      >>> sorted(c1.keys())
+      [u'roy', u'stephan']
+      >>> sorted(c2.keys())
+      [u'adam']
+
+    """
+
 
 checker = renormalizing.RENormalizing([
     (re.compile(r'datetime.datetime(.*)'),
