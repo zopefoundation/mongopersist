@@ -74,6 +74,9 @@ class Campaign(MongoItem, container.MongoContainer):
     def __init__(self, name):
         self.name = name
 
+    def __repr__(self):
+        return '<%s %s>' %(self.__class__.__name__, self.name)
+
 
 def doctest_Campaign():
     """MongoContainer: basic
@@ -102,7 +105,7 @@ def doctest_Campaign():
       >>> dm.root['c'].keys()
       [u'one']
       >>> dm.root['c'][u'one']
-      <mongopersist.zope.tests.test_container.Campaign object at 0x001122>
+      <Campaign one>
 
       >>> dm.root['c']['one'].__parent__
       <mongopersist.zope.tests.test_container.Campaigns object at 0x001122>
@@ -164,15 +167,15 @@ def doctest_Campaign():
 
     Check adding of more objects:
 
-      >>> dm.root['c'][u'roy'] = Campaign(u'Roy')
+      >>> dm.root['c'][u'1'] = c1 = Campaign(u'One')
       ContainerModifiedEvent: <...Campaigns ...>
-      >>> dm.root['c'][u'adam'] = Campaign(u'Adam')
+      >>> dm.root['c'][u'2'] = c2 = Campaign(u'Two')
       ContainerModifiedEvent: <...Campaigns ...>
-      >>> dm.root['c'][u'marius'] = Campaign(u'Marius')
+      >>> dm.root['c'][u'3'] = Campaign(u'Three')
       ContainerModifiedEvent: <...Campaigns ...>
 
       >>> sorted(dm.root['c'].keys())
-      [u'adam', u'marius', u'roy']
+      [u'1', u'2', u'3']
     """
 
 

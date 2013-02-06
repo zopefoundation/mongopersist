@@ -2,17 +2,21 @@
 CHANGES
 =======
 
-0.7.4 (unreleased)
+0.7.4 (2013-02-05)
 ------------------
 
-- Nothing changed yet.
+- Bug: Due to ``UserDict`` implementing ``dict`` comparison semantics, any
+  empty ``MongoContainer`` would equate to another empty one. This behavior
+  would cause object changes to not be properly recognzed by the mongo data
+  manager. The implemented solution is to implement default object comparison
+  behavior for mongo containers.
 
 
 0.7.3 (2013-01-29)
 ------------------
 
-- update to latest package versions
-  biggest change: ``pymongo`` does not reexport ``objectid`` and ``dbref``
+- Feature: Update to latest package versions, specifically pymongo 2.4.x. In
+  this release, ``pymongo`` does not reexport ``objectid`` and ``dbref``.
 
 0.7.2 (2012-04-19)
 ------------------

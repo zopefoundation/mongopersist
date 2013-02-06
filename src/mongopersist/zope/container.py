@@ -175,6 +175,12 @@ class MongoContainer(contained.Contained,
         self._locate(obj, doc)
         return obj
 
+    def __cmp__(self, other):
+        # UserDict implements the semantics of implementing comparison of
+        # items to determine equality, which is not what we want for a
+        # container, so we revert back to the default object comparison.
+        return cmp(id(self), id(other))
+
     def __getitem__(self, key):
         filter = self._m_get_items_filter()
         filter[self._m_mapping_key] = key
@@ -195,7 +201,7 @@ class MongoContainer(contained.Contained,
         # its oid.
         if value._p_oid is None:
             self._m_jar.insert(value)
-        # When the key is None, we use the object is as name.
+        # When the key is None, we use the object id as name.
         if key is None:
             key = unicode(value._p_oid.id)
         # We want to be as close as possible to using the Zope semantics.
