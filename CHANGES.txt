@@ -5,7 +5,8 @@ CHANGES
 0.7.6 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Switch to pymongo.MongoClient, set default write concern values,
+  allow override of write concern values
 
 
 0.7.5 (2013-02-06)

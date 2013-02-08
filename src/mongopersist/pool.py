@@ -33,10 +33,10 @@ class MongoConnectionPool(object):
     """
     zope.interface.implements(interfaces.IMongoConnectionPool)
 
-    _mongoConnectionFactory = pymongo.Connection
+    _mongoConnectionFactory = pymongo.MongoClient
 
     def __init__(self, host='localhost', port=27017, logLevel=20,
-        tz_aware=True, connectionFactory=None):
+        tz_aware=True, w=1, j=True, connectionFactory=None):
         self.host = host
         self.port = port
         self.key = 'mongopersist-%s-%s' %(self.host, self.port)
@@ -44,6 +44,8 @@ class MongoConnectionPool(object):
         if connectionFactory is not None:
             self._mongoConnectionFactory = connectionFactory
         self.logLevel = logLevel
+        self.w = w
+        self.j = j
 
     @property
     def storage(self):
@@ -60,7 +62,8 @@ class MongoConnectionPool(object):
         conn = self.storage.get(self.key, None)
         if conn is None:
             self.storage[self.key] = conn = self._mongoConnectionFactory(
-                self.host, self.port, tz_aware=self.tz_aware)
+                self.host, self.port, tz_aware=self.tz_aware,
+                w=self.w, j=self.j)
             if self.logLevel:
                 log.log(self.logLevel, "Create connection for %s:%s" % (
                     self.host, self.port))
@@ -74,8 +77,9 @@ class MongoDataManagerProvider(object):
     zope.interface.implements(interfaces.IMongoDataManagerProvider)
 
     def __init__(self, host='localhost', port=27017,
-                 logLevel=20, tz_aware=True, **dm_kwargs):
-        self.pool = MongoConnectionPool(host, port, logLevel, tz_aware)
+                 logLevel=20, tz_aware=True, w=1, j=True,
+                 **dm_kwargs):
+        self.pool = MongoConnectionPool(host, port, logLevel, tz_aware, w, j)
         self.dm_kwargs = dm_kwargs
 
     def get(self):
