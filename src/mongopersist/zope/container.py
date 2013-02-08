@@ -217,9 +217,17 @@ class MongoContainer(contained.Contained,
         value = self[key]
         # First remove the parent and name from the object.
         if self._m_mapping_key is not None:
-            delattr(value, self._m_mapping_key)
+            try:
+                delattr(value, self._m_mapping_key)
+            except AttributeError, err:
+                # Sometimes we do not control those attributes.
+                pass
         if self._m_parent_key is not None:
-            delattr(value, self._m_parent_key)
+            try:
+                delattr(value, self._m_parent_key)
+            except AttributeError, err:
+                # Sometimes we do not control those attributes.
+                pass
         # Let's now remove the object from the database.
         if self._m_remove_documents:
             self._m_jar.remove(value)

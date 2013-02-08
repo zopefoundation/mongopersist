@@ -5,22 +5,22 @@ CHANGES
 0.7.7 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Bug: Do not fail if we cannot delete the parent and name attributes.
 
 
 0.7.6 (2013-02-08)
 ------------------
 
-- Switch to pymongo.MongoClient, set default write concern values,
-  allow override of write concern values
+- Feature: Switch to ``pymongo.MongoClient``, set default write concern values,
+  allow override of write concern values.
 
 
 0.7.5 (2013-02-06)
 ------------------
 
-- Added, cleaned tests
+- Tests: Added, cleaned tests
 
-- Re-release after missing files in 0.7.4
+- Bug: Re-release after missing files in 0.7.4
 
 0.7.4 (2013-02-05)
 ------------------
