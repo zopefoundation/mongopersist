@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.7.6 (unreleased)
+0.7.6 (2013-02-08)
 ------------------
 
 - Switch to pymongo.MongoClient, set default write concern values,
