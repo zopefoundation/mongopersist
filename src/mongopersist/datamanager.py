@@ -14,6 +14,7 @@
 """Mongo Persistent Data Manager"""
 from __future__ import absolute_import
 import UserDict
+import bson
 import logging
 import transaction
 import sys
@@ -110,6 +111,23 @@ class CollectionWrapper(object):
     def __init__(self, collection, datamanager):
         self.__dict__['collection'] = collection
         self.__dict__['_datamanager'] = datamanager
+
+    def find_objects(self, *args, **kw):
+        docs = self.find(*args, **kw)
+        coll = self.collection.name
+        dbname = self.collection.database.name
+        for doc in docs:
+            dbref = bson.dbref.DBRef(coll, doc['_id'], dbname)
+            self._datamanager._latest_states[dbref] = doc
+            yield self._datamanager.load(dbref)
+
+    def find_one_object(self, *args, **kw):
+        doc = self.find_one(*args, **kw)
+        coll = self.collection.name
+        dbname = self.collection.database.name
+        dbref = bson.dbref.DBRef(coll, doc['_id'], dbname)
+        self._datamanager._latest_states[dbref] = doc
+        return self._datamanager.load(dbref)
 
     def __getattr__(self, name):
         attr = getattr(self.collection, name)

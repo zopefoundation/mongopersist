@@ -2,10 +2,17 @@
 CHANGES
 =======
 
-0.7.8 (unreleased)
+0.8.0 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Feature: Added ``find_objects()`` and ``find_one_object()``to the collection
+  wrapper, so that whenever you get a collection from the data manager, you
+  can load objects directly through the find API.
+
+- Feature: Added the ability for MongoContained objects to fully reference and
+  load their parents. This allows one to query mongo directly and create the
+  object from the doc without going through the right container, which you
+  might not know easily.
 
 
 0.7.7 (2013-02-08)

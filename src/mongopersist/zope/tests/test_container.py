@@ -54,6 +54,199 @@ class Person(container.MongoContained, SimplePerson):
     pass
 
 
+def doctest_MongoContained_simple():
+    """MongoContained: simple use
+
+    The simplest way to use MongoContained is to use it without any special
+    modification. In this case it is required that the container always sets
+    the name and parent after loading the item. It can do so directly by
+    setting ``_v_name`` and ``_v_parent`` so that the persistence mechanism
+    does not kick in.
+
+      >>> class Simples(container.MongoContainer):
+      ...     def __init__(self, name):
+      ...         super(Simples, self).__init__()
+      ...         self.name = name
+      ...     def __repr__(self):
+      ...         return '<Simples %s>' %self.name
+
+      >>> class Simple(container.MongoContained, persistent.Persistent):
+      ...     pass
+
+    Let's create a simple component and activate the persistence machinery:
+
+      >>> s = Simple()
+      >>> s._p_jar = dm
+
+    As you can see, the changed flag is not changed:
+
+      >>> s._p_changed
+      False
+      >>> s._v_name = 'simple'
+      >>> s._v_parent = Simples('one')
+      >>> s._p_changed
+      False
+
+    And accessing the name and parent works:
+
+      >>> s.__name__
+      'simple'
+      >>> s.__parent__
+      <Simples one>
+
+    But assignment works as well.
+
+      >>> s.__name__ = 'simple2'
+      >>> s.__name__
+      'simple2'
+      >>> s.__parent__ = Simples('two')
+      >>> s.__parent__
+      <Simples two>
+      >>> s._p_changed
+      True
+    """
+
+def doctest_MongoContained_proxy_attr():
+    """MongoContained: proxy attributes
+
+    It is also possible to use proxy attributes to reference the name and
+    parent. This allows you to have nice attribute names for storage in Mongo.
+
+    The main benefit, though is the ability of the object to load its
+    location, so that you can load the object without going through the
+    container and get full location path.
+
+      >>> class Proxies(container.MongoContainer):
+      ...     def __init__(self, name):
+      ...         super(Proxies, self).__init__()
+      ...         self.name = name
+      ...     def __repr__(self):
+      ...         return '<Proxies %s>' %self.name
+
+      >>> class Proxy(container.MongoContained, persistent.Persistent):
+      ...     _m_name_attr = 'name'
+      ...     _m_parent_attr = 'parent'
+      ...     def __init__(self, name, parent):
+      ...         self.name = name
+      ...         self.parent = parent
+
+    Let's create a proxy component and activate the persistence machinery:
+
+      >>> p = Proxy('proxy', Proxies('one'))
+      >>> p._p_jar = dm
+
+    So accessing the name and parent works:
+
+      >>> p.__name__
+      'proxy'
+      >>> p.__parent__
+      <Proxies one>
+
+    But assignment is only stored into the volatile variables and the proxy
+    attribute values are not touched.
+
+      >>> p.__name__ = 'proxy2'
+      >>> p.__name__
+      'proxy2'
+      >>> p.name
+      'proxy'
+      >>> p.__parent__ = Proxies('two')
+      >>> p.__parent__
+      <Proxies two>
+      >>> p.parent
+      <Proxies one>
+
+    This behavior is intentional, so that containment machinery cannot mess
+    with the real attributes. Note that in practice, only MongoContainer sets
+    the ``__name__`` and ``__parent__`` and it should be always consistent
+    with the referenced attributes.
+
+    """
+
+def doctest_MongoContained_setter_getter():
+    """MongoContained: setter/getter functions
+
+    If you need ultimate flexibility of where to get and store the name and
+    parent, then you can define setters and getters.
+
+      >>> class Funcs(container.MongoContainer):
+      ...     def __init__(self, name):
+      ...         super(Funcs, self).__init__()
+      ...         self.name = name
+      ...     def __repr__(self):
+      ...         return '<Funcs %s>' %self.name
+
+      >>> class Func(container.MongoContained, persistent.Persistent):
+      ...     _m_name_getter = lambda s: s.name
+      ...     _m_name_setter = lambda s, v: setattr(s, 'name', v)
+      ...     _m_parent_getter = lambda s: s.parent
+      ...     _m_parent_setter = lambda s, v: setattr(s, 'parent', v)
+      ...     def __init__(self, name, parent):
+      ...         self.name = name
+      ...         self.parent = parent
+
+    Let's create a func component and activate the persistence machinery:
+
+      >>> f = Func('func', Funcs('one'))
+      >>> f._p_jar = dm
+
+    So accessing the name and parent works:
+
+      >>> f.__name__
+      'func'
+      >>> f.__parent__
+      <Funcs one>
+
+    In this case, the setters are used, if the name and parent are changed:
+
+      >>> f.__name__ = 'func2'
+      >>> f.__name__
+      'func2'
+      >>> f.name
+      'func2'
+      >>> f.__parent__ = Funcs('two')
+      >>> f.__parent__
+      <Funcs two>
+      >>> f.parent
+      <Funcs two>
+    """
+
+
+def doctest_MongoContained_mixed():
+    """MongoContained: mixed usage
+
+    When the container is stored in the ZODB or another persistence mechanism,
+    a mixed usage of proxy attributes and getter/setter functions is the best
+    appraoch.
+
+      >>> class Mixers(btree.BTreeContainer):
+      ...     def __init__(self, name):
+      ...         super(Mixers, self).__init__()
+      ...         self.name = name
+      ...     def __repr__(self):
+      ...         return '<Mixers %s>' %self.name
+      >>> mixers = Mixers('one')
+
+      >>> class Mixer(container.MongoContained, persistent.Persistent):
+      ...     _m_name_attr = 'name'
+      ...     _m_parent_getter = lambda s: mixers
+      ...     def __init__(self, name):
+      ...         self.name = name
+
+    Let's create a mixer component and activate the persistence machinery:
+
+      >>> m = Mixer('mixer')
+      >>> m._p_jar = dm
+
+    So accessing the name and parent works:
+
+      >>> m.__name__
+      'mixer'
+      >>> m.__parent__
+      <Mixers one>
+    """
+
+
 def doctest_SimpleMongoContainer_basic():
     """SimpleMongoContainer: basic
 

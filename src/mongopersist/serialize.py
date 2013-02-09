@@ -511,6 +511,9 @@ class ObjectReader(object):
             coll = self._jar.get_collection(
                 obj._p_oid.database, obj._p_oid.collection)
             doc = coll.find_one({'_id': obj._p_oid.id})
+        # Check that we really have a state doc now.
+        if doc is None:
+            raise ImportError(obj._p_oid)
         # Create a copy of the doc, so that we can modify it.
         state_doc = doc.copy()
         # Remove unwanted attributes.

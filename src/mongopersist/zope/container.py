@@ -28,19 +28,43 @@ from mongopersist.zope import interfaces as zinterfaces
 
 class MongoContained(contained.Contained):
 
+    _v_name = None
+    _m_name_attr = None
+    _m_name_getter = None
+    _m_name_setter = None
+
+    _m_parent_attr = None
+    _m_parent_getter = None
+    _m_parent_setter = None
+    _v_parent = None
+
     @getproperty
     def __name__(self):
-        return getattr(self, '_v_key', None)
+        if self._v_name is None:
+            if self._m_name_attr is not None:
+                self._v_name = getattr(self, self._m_name_attr, None)
+            elif self._m_name_getter is not None:
+                self._v_name = self._m_name_getter()
+        return self._v_name
     @setproperty
     def __name__(self, value):
-        setattr(self, '_v_key', value)
+        if self._m_name_setter is not None:
+            self._m_name_setter(value)
+        self._v_name = value
 
     @getproperty
     def __parent__(self):
-        return getattr(self, '_v_parent', None)
+        if self._v_parent is None:
+            if self._m_parent_attr is not None:
+                self._v_parent = getattr(self, self._m_parent_attr, None)
+            elif self._m_parent_getter is not None:
+                self._v_parent = self._m_parent_getter()
+        return self._v_parent
     @setproperty
     def __parent__(self, value):
-        setattr(self, '_v_parent', value)
+        if self._m_parent_setter is not None:
+            self._m_parent_setter(value)
+        self._v_parent = value
 
 
 class SimpleMongoContainer(sample.SampleContainer, persistent.Persistent):
@@ -62,7 +86,7 @@ class SimpleMongoContainer(sample.SampleContainer, persistent.Persistent):
 
     def __getitem__(self, key):
         obj = super(SimpleMongoContainer, self).__getitem__(key)
-        obj._v_key = key
+        obj._v_name = key
         obj._v_parent = self
         return obj
 
@@ -70,14 +94,14 @@ class SimpleMongoContainer(sample.SampleContainer, persistent.Persistent):
         '''See interface `IReadContainer`'''
         obj = super(SimpleMongoContainer, self).get(key, default)
         if obj is not default:
-            obj._v_key = key
+            obj._v_name = key
             obj._v_parent = self
         return obj
 
     def items(self):
         items = super(SimpleMongoContainer, self).items()
         for key, obj in items:
-            obj._v_key = key
+            obj._v_name = key
             obj._v_parent = self
         return items
 
@@ -161,8 +185,12 @@ class MongoContainer(contained.Contained,
                 filter[key] = value
 
     def _locate(self, obj, doc):
-        obj._v_key = doc[self._m_mapping_key]
-        obj._v_parent = self
+        # Helper method that is only used when locating items that are already
+        # in the container and are simply loaded from Mongo.
+        if obj.__name__ is None:
+            obj.__name__ = doc[self._m_mapping_key]
+        if obj.__parent__ is None:
+            obj._v_parent = self
 
     def _load_one(self, doc):
         # Create a DBRef object and then load the full state of the object.
@@ -190,7 +218,7 @@ class MongoContainer(contained.Contained,
         return obj
 
     def _real_setitem(self, key, value):
-        # This call by iteself caues the state to change _p_changed to True.
+        # This call by iteself causes the state to change _p_changed to True.
         if self._m_mapping_key is not None:
             setattr(value, self._m_mapping_key, key)
         if self._m_parent_key is not None:
@@ -295,7 +323,7 @@ class IdNamesMongoContainer(MongoContainer):
         return True
 
     def _locate(self, obj, doc):
-        obj._v_key = unicode(doc['_id'])
+        obj._v_name = unicode(doc['_id'])
         obj._v_parent = self
 
     def __getitem__(self, key):
