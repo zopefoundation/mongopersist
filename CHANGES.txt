@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.8.0 (unreleased)
+0.8.0 (2013-02-09)
 ------------------
 
 - Feature: Added ``find_objects()`` and ``find_one_object()``to the collection
