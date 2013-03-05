@@ -13,8 +13,7 @@
 ##############################################################################
 """PyMongo Patches"""
 from __future__ import absolute_import
-from bson.son import SON
-from copy import deepcopy
+
 
 def DBRef__init__(self, collection, id, database=None, _extra=None):
     self._DBRef__collection = collection

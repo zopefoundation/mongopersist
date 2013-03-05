@@ -72,7 +72,7 @@ class LoggingDecorator(object):
 
     # these are here to be easily patched
     ADD_TB = True
-    TB_LIMIT = 10 # 10 should be sufficient to figure
+    TB_LIMIT = 10  # 10 should be sufficient to figure
 
     def __init__(self, collection, function):
         self.collection = collection
@@ -131,7 +131,7 @@ class CollectionWrapper(object):
 
     def __getattr__(self, name):
         attr = getattr(self.collection, name)
-        if MONGO_ACCESS_LOGGING  and name in self.LOGGED_METHODS:
+        if MONGO_ACCESS_LOGGING and name in self.LOGGED_METHODS:
             attr = LoggingDecorator(self.collection, attr)
         if name in self.QUERY_METHODS:
             attr = FlushDecorator(self._datamanager, attr)

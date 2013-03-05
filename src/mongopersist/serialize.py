@@ -474,8 +474,10 @@ class ObjectReader(object):
             if serializer.can_read(state):
                 return serializer.read(state)
 
-        if isinstance(state, dict) and ('_py_factory' in state or \
-               '_py_type' in state or '_py_persistent_type' in state):
+        if isinstance(state, dict) and (
+            '_py_factory' in state
+            or '_py_type' in state
+            or '_py_persistent_type' in state):
             # Load a non-persistent object.
             return self.get_non_persistent_object(state, obj)
         if isinstance(state, (tuple, list)):

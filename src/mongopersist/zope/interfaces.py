@@ -20,7 +20,7 @@ class IMongoContainer(zope.interface.Interface):
     _m_database = zope.schema.ASCIILine(
         title=u'Mongo Database',
         description=(
-            u'Specifies the MDB in which to store items. If ``None``, the '
+            u'Specifies the Mongo DB in which to store items. If ``None``, the '
             u'default database will be used.'),
         default=None)
 

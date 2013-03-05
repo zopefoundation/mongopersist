@@ -153,7 +153,7 @@ Non-Persistent Objects
 ----------------------
 
 As you can see, even the reference looks nice and uses the standard Mongo DB
-reference construct. But what about arbitrary non-persistent, but pickable,
+reference construct. But what about arbitrary non-persistent, but picklable,
 objects? Well, let's create a phone number object for that:
 
   >>> class Phone(object):

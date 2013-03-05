@@ -15,7 +15,8 @@
 from __future__ import absolute_import
 import struct
 import zope.interface
-from mongopersist import interfaces, serialize
+from mongopersist import interfaces
+
 
 def p64(v):
     """Pack an integer or long into a 8-byte string"""
