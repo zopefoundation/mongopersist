@@ -64,7 +64,7 @@ def printResult(text, t1, t2, count=None):
     if count:
         ops = "%d ops/second" % (count / dur)
 
-    print '%-20s %.4f secs %s' % (text, dur, ops)
+    print '%-25s %.4f secs %s' % (text, dur, ops)
 
 
 def run_basic_crud(options):
@@ -124,13 +124,36 @@ def run_basic_crud(options):
     # Profile object caching
     transaction.begin()
     t1 = time.time()
-    [person for person in people.values()]
+    [person.name for person in people.values()]
     [person.name for person in people.values()]
     #cProfile.runctx(
     #    '[person.name for person in people.values()]', globals(), locals())
     t2 = time.time()
     transaction.commit()
-    printResult('Fast Read (caching)', t1, t2, peopleCnt*2)
+    printResult('Fast Read (caching x2)', t1, t2, peopleCnt*2)
+
+    transaction.begin()
+    t1 = time.time()
+    [person.name for person in people.values()]
+    [person.name for person in people.values()]
+    [person.name for person in people.values()]
+    #cProfile.runctx(
+    #    '[person.name for person in people.values()]', globals(), locals())
+    t2 = time.time()
+    transaction.commit()
+    printResult('Fast Read (caching x3)', t1, t2, peopleCnt*3)
+
+    transaction.begin()
+    t1 = time.time()
+    [person.name for person in people.values()]
+    [person.name for person in people.values()]
+    [person.name for person in people.values()]
+    [person.name for person in people.values()]
+    #cProfile.runctx(
+    #    '[person.name for person in people.values()]', globals(), locals())
+    t2 = time.time()
+    transaction.commit()
+    printResult('Fast Read (caching x4)', t1, t2, peopleCnt*4)
 
     if options.modify:
         # Profile modification
