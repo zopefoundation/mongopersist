@@ -188,7 +188,7 @@ class MongoContainer(contained.Contained,
         # Helper method that is only used when locating items that are already
         # in the container and are simply loaded from Mongo.
         if obj.__name__ is None:
-            obj.__name__ = doc[self._m_mapping_key]
+            obj._v_name__ = doc[self._m_mapping_key]
         if obj.__parent__ is None:
             obj._v_parent = self
 

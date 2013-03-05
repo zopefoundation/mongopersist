@@ -18,6 +18,7 @@ import ZODB
 import ZODB.DemoStorage
 import persistent
 import pymongo
+import random
 import re
 import transaction
 import zope.component
@@ -217,7 +218,7 @@ def doctest_MongoContained_mixed():
 
     When the container is stored in the ZODB or another persistence mechanism,
     a mixed usage of proxy attributes and getter/setter functions is the best
-    appraoch.
+    approach.
 
       >>> class Mixers(btree.BTreeContainer):
       ...     def __init__(self, name):
@@ -486,7 +487,7 @@ def doctest_MongoContainer_constructor():
 def doctest_MongoContainer_m_parent_key_value():
     r"""MongoContainer: _m_parent_key_value()
 
-    This method is used to extract the parent refernce for the item.
+    This method is used to extract the parent reference for the item.
 
       >>> c = container.MongoContainer('person')
 
@@ -1061,6 +1062,64 @@ def doctest_Realworldish():
 
     """
 
+
+class People(container.AllItemsMongoContainer):
+    _p_mongo_collection = 'people'
+    _m_collection = 'person'
+
+
+class Address(persistent.Persistent):
+    _p_mongo_collection = 'address'
+
+    def __init__(self, city):
+        self.city = city
+
+
+class PeoplePerson(persistent.Persistent, container.MongoContained):
+    _p_mongo_collection = 'person'
+    _p_mongo_store_type = True
+
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+        self.address = Address('Boston %i' %age)
+
+    def __repr__(self):
+        return '<%s %s @ %i [%s]>' %(
+            self.__class__.__name__, self.name, self.age, self.__name__)
+
+
+def doctest_load_does_not_set_p_changed():
+    """We need to guarantee that _p_changed is not True on obj load
+
+    Let's add some objects:
+
+      >>> transaction.commit()
+      >>> dm.root['people'] = people = People()
+      >>> x = transaction.begin()
+      >>> for idx in xrange(2):
+      ...     people[None] = PeoplePerson('Mr Number %.5i' %idx, random.randint(0, 100))
+      >>> transaction.commit()
+
+      >>> objs = [o for o in people.values()]
+      >>> len(objs)
+      2
+      >>> [o._p_changed for o in objs]
+      [False, False]
+
+      >>> [o._p_changed for o in people.values()]
+      [False, False]
+
+      >>> transaction.commit()
+
+      >>> x = transaction.begin()
+      >>> [o._p_changed for o in people.values()]
+      [False, False]
+
+      >>> [o._p_changed for o in people.values()]
+      [False, False]
+
+    """
 
 checker = renormalizing.RENormalizing([
     (re.compile(r'datetime.datetime(.*)'),
