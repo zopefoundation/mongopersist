@@ -56,6 +56,17 @@ class Person(persistent.Persistent, container.MongoContained):
 class Person2(Person):
     pass
 
+
+def printResult(text, t1, t2, count=None):
+    dur = t2-t1
+    text += ':'
+    ops = ''
+    if count:
+        ops = "%d ops/second" % (count / dur)
+
+    print '%-20s %.4f secs %s' % (text, dur, ops)
+
+
 def run_basic_crud(options):
     conn = pymongo.Connection('localhost', 27017, tz_aware=False)
     dm = datamanager.MongoDataManager(
@@ -75,11 +86,11 @@ def run_basic_crud(options):
             people[None] = klass('Mr Number %.5i' %idx, random.randint(0, 100))
         transaction.commit()
         t2 = time.time()
-        print 'Insert:       %.4f secs' % (t2-t1)
-
+        printResult('Insert', t1, t2, options.size)
     else:
         people = dm.root['people']
 
+    peopleCnt = len(people)
     # Profile slow read
     transaction.begin()
     t1 = time.time()
@@ -88,7 +99,7 @@ def run_basic_crud(options):
     #    '[people[name].name for name in people]', globals(), locals())
     t2 = time.time()
     transaction.commit()
-    print 'Slow Read:        %.4f secs' % (t2-t1)
+    printResult('Slow Read', t1, t2, peopleCnt)
 
     # Profile fast read (values)
     transaction.begin()
@@ -98,7 +109,7 @@ def run_basic_crud(options):
     #    '[person.name for person in people.find()]', globals(), locals())
     t2 = time.time()
     transaction.commit()
-    print 'Fast Read (values): %.4f secs' % (t2-t1)
+    printResult('Fast Read (values)', t1, t2, peopleCnt)
 
     # Profile fast read
     transaction.begin()
@@ -108,7 +119,18 @@ def run_basic_crud(options):
     #    '[person.name for person in people.find()]', globals(), locals())
     t2 = time.time()
     transaction.commit()
-    print 'Fast Read (find):   %.4f secs' % (t2-t1)
+    printResult('Fast Read (find)', t1, t2, peopleCnt)
+
+    # Profile object caching
+    transaction.begin()
+    t1 = time.time()
+    [person for person in people.values()]
+    [person.name for person in people.values()]
+    #cProfile.runctx(
+    #    '[person.name for person in people.values()]', globals(), locals())
+    t2 = time.time()
+    transaction.commit()
+    printResult('Fast Read (caching)', t1, t2, peopleCnt*2)
 
     if options.modify:
         # Profile modification
@@ -122,7 +144,7 @@ def run_basic_crud(options):
         #cProfile.runctx(
         #    'modify()', globals(), locals())
         t2 = time.time()
-        print 'Modification:     %.4f secs' % (t2-t1)
+        printResult('Modification', t1, t2, peopleCnt)
 
     if options.delete:
         # Profile deletion
@@ -131,7 +153,7 @@ def run_basic_crud(options):
             del people[name]
         transaction.commit()
         t2 = time.time()
-        print 'Deletion:         %.4f secs' % (t2-t1)
+        printResult('Deletion', t1, t2, peopleCnt)
 
 parser = optparse.OptionParser()
 parser.usage = '%prog [options]'
