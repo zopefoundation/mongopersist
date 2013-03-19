@@ -402,8 +402,8 @@ persistent object they belong to and provide persistent implementations.
 
   >>> dm.root['stephan'].friends[u'roger'] = Person(u'Roger')
   >>> transaction.commit()
-  >>> dm.root['stephan'].friends.keys()
-  [u'roy', u'roger']
+  >>> sorted(dm.root['stephan'].friends.keys())
+  [u'roger', u'roy']
 
 The same is true for lists:
 
@@ -512,7 +512,7 @@ it to the mapping:
 
   >>> dm.root['stephan'].friends['roy'].short_name = 'roy'
   >>> transaction.commit()
-  >>> People(dm).keys()
+  >>> sorted(People(dm).keys())
   [u'roy', u'stephan']
 
 
