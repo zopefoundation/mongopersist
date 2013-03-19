@@ -5,13 +5,15 @@ CHANGES
 0.8.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fixed ``_p_changed`` setting on object loading which was caused by assigning
+  directly to ``__name__``. That caused all objects read from containers to be
+  marked changed on load. That wrecked cache performance too.
 
 
 0.8.0 (2013-02-09)
 ------------------
 
-- Feature: Added ``find_objects()`` and ``find_one_object()``to the collection
+- Feature: Added ``find_objects()`` and ``find_one_object()`` to the collection
   wrapper, so that whenever you get a collection from the data manager, you
   can load objects directly through the find API.
 
