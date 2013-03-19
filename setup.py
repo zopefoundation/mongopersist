@@ -14,6 +14,7 @@ setup(
     version='0.8.1',
     author="Stephan Richter",
     author_email="stephan.richter@gmail.com",
+    url='https://github.com/zopefoundation/mongopersist',
     description="Mongo Persistence Backend",
     long_description=(
         read('src', 'mongopersist', 'README.txt')
