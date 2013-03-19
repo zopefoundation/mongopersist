@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.8.1 (unreleased)
+0.8.1 (2013-03-19)
 ------------------
 
 - Fixed ``_p_changed`` setting on object loading which was caused by assigning
