@@ -104,7 +104,9 @@ class SerialConflictHandler(object):
         # cannot be a conflict.
         if obj._p_oid is None:
             return
-        coll = self.datamanager._get_collection_from_object(obj)
+        # make sure we use the same db and collection as in the object
+        coll = self.datamanager._get_collection(
+            obj._p_oid.database, obj._p_oid.collection)
         cur_doc = coll.find_one(obj._p_oid.id, fields=(self.field_name,))
         if cur_doc is None:
             return
