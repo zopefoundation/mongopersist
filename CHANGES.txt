@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.8.2 (unreleased)
+0.8.2 (2013-04-03)
 ------------------
 
 - Fixed ``check_conflict``: make sure we use the same db and collection
