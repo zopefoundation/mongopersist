@@ -28,6 +28,7 @@ COLLECTION_LOG = logging.getLogger('mongopersist.collection')
 
 LOG = logging.getLogger(__name__)
 
+
 def process_spec(collection, spec):
     try:
         adapter = interfaces.IMongoSpecProcessor(None)
@@ -36,6 +37,7 @@ def process_spec(collection, spec):
         return spec
 
     return adapter.process(collection, spec)
+
 
 class FlushDecorator(object):
 
@@ -46,6 +48,7 @@ class FlushDecorator(object):
     def __call__(self, *args, **kwargs):
         self.datamanager.flush()
         return self.function(*args, **kwargs)
+
 
 class ProcessSpecDecorator(object):
 
@@ -67,6 +70,7 @@ class ProcessSpecDecorator(object):
         elif 'query' in kwargs:
             kwargs['query'] = process_spec(self.collection, kwargs['query'])
         return self.function(*args, **kwargs)
+
 
 class LoggingDecorator(object):
 
@@ -91,7 +95,7 @@ class LoggingDecorator(object):
             tb = '  <omitted>'
 
         txn = transaction.get()
-        txn = '%i - %s' %(id(txn), txn.description),
+        txn = '%i - %s' % (id(txn), txn.description),
 
         COLLECTION_LOG.debug(
             "collection: %s.%s %s,\n TXN:%s,\n args:%r,\n kwargs:%r, \n tb:\n%s",
@@ -99,6 +103,7 @@ class LoggingDecorator(object):
             self.function.__name__, txn, args, kwargs, tb)
 
         return self.function(*args, **kwargs)
+
 
 class CollectionWrapper(object):
 
@@ -148,7 +153,7 @@ class CollectionWrapper(object):
 
 class Root(UserDict.DictMixin):
 
-    database='mongopersist'
+    database = 'mongopersist'
     collection = 'persistence_root'
 
     def __init__(self, jar, database=None, collection=None):
