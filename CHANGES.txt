@@ -5,7 +5,8 @@ CHANGES
 0.8.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fixed ``check_conflict``: make sure we use the same db and collection
+  as in the object
 
 
 0.8.1 (2013-03-19)
