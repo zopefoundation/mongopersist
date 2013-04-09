@@ -218,7 +218,7 @@ class MongoContainer(contained.Contained,
         return obj
 
     def _real_setitem(self, key, value):
-        # This call by iteself causes the state to change _p_changed to True.
+        # This call by itself causes the state to change _p_changed to True.
         if self._m_mapping_key is not None:
             setattr(value, self._m_mapping_key, key)
         if self._m_parent_key is not None:
