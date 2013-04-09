@@ -547,13 +547,32 @@ def doctest_MongoContainer_many_items():
       <Person Adam>
 """
 
-def doctest_MongoContainer_setitem_with_no_key():
+def doctest_MongoContainer_setitem_with_no_key_MongoContainer():
     """MongoContainer: __setitem__(None, obj)
+
+    Whenever an item is added with no key, getattr(obj, _m_mapping_key) is used.
+
+      >>> transaction.commit()
+      >>> dm.root['people'] = container.MongoContainer(
+      ...     'person', mapping_key='name')
+      >>> dm.root['people'][None] = Person(u'Stephan')
+
+    Let's now search and receive documents as result:
+
+      >>> sorted(dm.root['people'].keys())
+      [u'...']
+      >>> stephan = dm.root['people'].values()[0]
+      >>> stephan.__name__ == str(stephan.name)
+      True
+"""
+
+def doctest_MongoContainer_setitem_with_no_key_IdNamesMongoContainer():
+    """IdNamesMongoContainer: __setitem__(None, obj)
 
     Whenever an item is added with no key, the OID is used.
 
       >>> transaction.commit()
-      >>> dm.root['people'] = container.MongoContainer('person')
+      >>> dm.root['people'] = container.IdNamesMongoContainer('person')
       >>> dm.root['people'][None] = Person(u'Stephan')
 
     Let's now search and receive documents as result:
@@ -565,15 +584,36 @@ def doctest_MongoContainer_setitem_with_no_key():
       True
 """
 
-def doctest_MongoContainer_add():
+def doctest_MongoContainer_add_MongoContainer():
     """MongoContainer: add(value, key=None)
+
+    Sometimes we just do not want to be responsible to determine the name of
+    the object to be added. This method makes this optional. The default
+    implementation assigns getattr(obj, _m_mapping_key) as name:
+
+      >>> transaction.commit()
+      >>> dm.root['people'] = container.MongoContainer(
+      ...     'person', mapping_key='name')
+      >>> dm.root['people'].add(Person(u'Stephan'))
+
+    Let's now search and receive documents as result:
+
+      >>> sorted(dm.root['people'].keys())
+      [u'...']
+      >>> stephan = dm.root['people'].values()[0]
+      >>> stephan.__name__ == str(stephan.name)
+      True
+"""
+
+def doctest_MongoContainer_add_IdNamesMongoContainer():
+    """IdNamesMongoContainer: add(value, key=None)
 
     Sometimes we just do not want to be responsible to determine the name of
     the object to be added. This method makes this optional. The default
     implementation assigns the OID as name:
 
       >>> transaction.commit()
-      >>> dm.root['people'] = container.MongoContainer('person')
+      >>> dm.root['people'] = container.IdNamesMongoContainer('person')
       >>> dm.root['people'].add(Person(u'Stephan'))
 
     Let's now search and receive documents as result:
@@ -1064,6 +1104,7 @@ def doctest_Realworldish():
 
 
 class People(container.AllItemsMongoContainer):
+    _m_mapping_key = 'name'
     _p_mongo_collection = 'people'
     _m_collection = 'person'
 
@@ -1118,6 +1159,111 @@ def doctest_load_does_not_set_p_changed():
 
       >>> [o._p_changed for o in people.values()]
       [False, False]
+
+    """
+
+
+def doctest_firing_events_MongoContainer():
+    """Events need to be fired when _m_mapping_key is already set on the object
+    and the object gets added to the container
+
+      >>> @zope.component.adapter(zope.component.interfaces.IObjectEvent)
+      ... def eventHandler(event):
+      ...     print event
+
+      >>> zope.component.provideHandler(eventHandler)
+
+    Let's add some objects:
+
+      >>> transaction.commit()
+      >>> dm.root['people'] = people = People()
+      >>> x = transaction.begin()
+      >>> for idx in xrange(2):
+      ...     people[None] = PeoplePerson('Mr Number %.5i' %idx, random.randint(0, 100))
+      <zope.lifecycleevent.ObjectAddedEvent object at ...>
+      <zope.container.contained.ContainerModifiedEvent object at ...>
+      <zope.lifecycleevent.ObjectAddedEvent object at ...>
+      <zope.container.contained.ContainerModifiedEvent object at ...>
+      >>> transaction.commit()
+      >>> list(people.keys())
+      [u'Mr Number 00000', u'Mr Number 00001']
+
+      >>> for idx in xrange(2):
+      ...     name = 'Mr Number %.5i' % (idx+10, )
+      ...     people.add(PeoplePerson(name, random.randint(0, 100)))
+      <zope.lifecycleevent.ObjectAddedEvent object at ...>
+      <zope.container.contained.ContainerModifiedEvent object at ...>
+      <zope.lifecycleevent.ObjectAddedEvent object at ...>
+      <zope.container.contained.ContainerModifiedEvent object at ...>
+      >>> transaction.commit()
+      >>> list(people.keys())
+      [u'Mr Number 00000', u'Mr Number 00001', u'Mr Number 00010', u'Mr Number 00011']
+
+      >>> for idx in xrange(2):
+      ...     name = 'Mr Number %.5i' % (idx+20, )
+      ...     people[name] = PeoplePerson(name, random.randint(0, 100))
+      <zope.lifecycleevent.ObjectAddedEvent object at ...>
+      <zope.container.contained.ContainerModifiedEvent object at ...>
+      <zope.lifecycleevent.ObjectAddedEvent object at ...>
+      <zope.container.contained.ContainerModifiedEvent object at ...>
+      >>> transaction.commit()
+      >>> list(people.keys())
+      [u'Mr Number 00000', u'Mr Number 00001', u'Mr Number 00010', u'Mr Number 00011',
+       u'Mr Number 00020', u'Mr Number 00021']
+
+    """
+
+
+class PeopleWithIDKeys(container.IdNamesMongoContainer):
+    _p_mongo_collection = 'people'
+    _m_collection = 'person'
+
+
+def doctest_firing_events_IdNamesMongoContainer():
+    """Events need to be fired when the object gets added to the container
+
+      >>> @zope.component.adapter(zope.component.interfaces.IObjectEvent)
+      ... def eventHandler(event):
+      ...     print event
+
+      >>> zope.component.provideHandler(eventHandler)
+
+    Let's add some objects:
+
+      >>> transaction.commit()
+      >>> dm.root['people'] = people = PeopleWithIDKeys()
+      >>> x = transaction.begin()
+      >>> for idx in xrange(2):
+      ...     people[None] = PeoplePerson('Mr Number %.5i' %idx, random.randint(0, 100))
+      <zope.lifecycleevent.ObjectAddedEvent object at ...>
+      <zope.container.contained.ContainerModifiedEvent object at ...>
+      <zope.lifecycleevent.ObjectAddedEvent object at ...>
+      <zope.container.contained.ContainerModifiedEvent object at ...>
+      >>> transaction.commit()
+      >>> list(people.keys())
+      [u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000']
+
+      >>> for idx in xrange(2):
+      ...     name = 'Mr Number %.5i' % (idx+10, )
+      ...     people.add(PeoplePerson(name, random.randint(0, 100)))
+      <zope.lifecycleevent.ObjectAddedEvent object at ...>
+      <zope.container.contained.ContainerModifiedEvent object at ...>
+      <zope.lifecycleevent.ObjectAddedEvent object at ...>
+      <zope.container.contained.ContainerModifiedEvent object at ...>
+      >>> transaction.commit()
+      >>> list(people.keys())
+      [u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000']
+
+      >>> for idx in xrange(2):
+      ...     name = 'Mr Number %.5i' % (idx+20, )
+      ...     people[name] = PeoplePerson(name, random.randint(0, 100))
+      <zope.lifecycleevent.ObjectAddedEvent object at ...>
+      <zope.container.contained.ContainerModifiedEvent object at ...>
+      <zope.lifecycleevent.ObjectAddedEvent object at ...>
+      <zope.container.contained.ContainerModifiedEvent object at ...>
+      >>> transaction.commit()
+      >>> list(people.keys())
+      [u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000']
 
     """
 

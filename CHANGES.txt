@@ -5,7 +5,17 @@ CHANGES
 0.8.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fixed ``MongoContainer`` vs ``IdNamesMongoContainer``
+  ``add`` and ``__setitem__`` behavour on ``None`` keys.
+  ``ObjectAddedEvent`` or ``ObjectMovedEvent`` were not fired because
+  ``zope.container.contained.setitem`` got the just inserted object back.
+
+  ``MongoContainer`` always requires ``_m_mapping_key`` and uses that attribute
+  of the object to determine the new key.
+
+  ``IdNamesMongoContainer`` requires ``_m_mapping_key`` ``None`` and uses
+  ``_id`` to determine the new key.
+
 
 
 0.8.2 (2013-04-03)

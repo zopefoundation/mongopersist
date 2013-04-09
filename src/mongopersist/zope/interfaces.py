@@ -110,6 +110,7 @@ class IMongoContainer(zope.interface.Interface):
     def add(value, key=None):
         """Add an object without necessarily knowing the key of the object.
 
-        It is up to the implementation to determine a key, if none is passed
-        in. One approach would be to use the object's OID.
+        Either pass in a valid key or the key will be:
+        - in case _m_mapping_key is None: the object's OID
+        - otherwise getattr(value, _m_mapping_key)
         """

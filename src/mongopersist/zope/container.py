@@ -218,6 +218,11 @@ class MongoContainer(contained.Contained,
         return obj
 
     def _real_setitem(self, key, value):
+        # Make sure the value is in the database, since we might want
+        # to use its oid.
+        if value._p_oid is None:
+            self._m_jar.insert(value)
+
         # This call by itself causes the state to change _p_changed to True.
         if self._m_mapping_key is not None:
             setattr(value, self._m_mapping_key, key)
@@ -225,20 +230,24 @@ class MongoContainer(contained.Contained,
             setattr(value, self._m_parent_key, self._m_get_parent_key_value())
 
     def __setitem__(self, key, value):
-        # Make sure the value is in the database, since we might want to use
-        # its oid.
-        if value._p_oid is None:
-            self._m_jar.insert(value)
-        # When the key is None, we use the object id as name.
+        # When the key is None, we need to determine it.
         if key is None:
-            key = unicode(value._p_oid.id)
+            if self._m_mapping_key is None:
+                # Make sure the value is in the database, since we might want
+                # to use its oid.
+                if value._p_oid is None:
+                    self._m_jar.insert(value)
+                key = unicode(value._p_oid.id)
+            else:
+                # we have _m_mapping_key, use that attribute
+                key = getattr(value, self._m_mapping_key)
         # We want to be as close as possible to using the Zope semantics.
         contained.setitem(self, self._real_setitem, key, value)
 
     def add(self, value, key=None):
         # We are already supporting ``None`` valued keys, which prompts the key
-        # to be the OID. But people felt that a more explicit interface would
-        # be better in this case.
+        # to be determined here. But people felt that a more explicit
+        # interface would be better in this case.
         self[key] = value
 
     def __delitem__(self, key):
@@ -315,6 +324,8 @@ class IdNamesMongoContainer(MongoContainer):
     """A container that uses the Mongo ObjectId as the name/key."""
     _m_mapping_key = None
 
+    def __init__(self, collection=None, database=None, parent_key=None):
+        super(IdNamesMongoContainer, self).__init__(collection, database, parent_key)
 
     @property
     def _m_remove_documents(self):
