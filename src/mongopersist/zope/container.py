@@ -247,13 +247,13 @@ class MongoContainer(contained.Contained,
         if self._m_mapping_key is not None:
             try:
                 delattr(value, self._m_mapping_key)
-            except AttributeError, err:
+            except AttributeError:
                 # Sometimes we do not control those attributes.
                 pass
         if self._m_parent_key is not None:
             try:
                 delattr(value, self._m_parent_key)
-            except AttributeError, err:
+            except AttributeError:
                 # Sometimes we do not control those attributes.
                 pass
         # Let's now remove the object from the database.
@@ -283,7 +283,7 @@ class MongoContainer(contained.Contained,
 
     def raw_find(self, spec=None, *args, **kwargs):
         if spec is None:
-            spec  = {}
+            spec = {}
         self._m_add_items_filter(spec)
         coll = self.get_collection()
         return coll.find(spec, *args, **kwargs)
@@ -297,7 +297,7 @@ class MongoContainer(contained.Contained,
 
     def raw_find_one(self, spec_or_id=None, *args, **kwargs):
         if spec_or_id is None:
-            spec_or_id  = {}
+            spec_or_id = {}
         if not isinstance(spec_or_id, dict):
             spec_or_id = {'_id': spec_or_id}
         self._m_add_items_filter(spec_or_id)
