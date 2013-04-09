@@ -236,7 +236,7 @@ class MongoContainer(contained.Contained,
         contained.setitem(self, self._real_setitem, key, value)
 
     def add(self, value, key=None):
-        # We are already suporting ``None`` valued keys, which prompts the key
+        # We are already supporting ``None`` valued keys, which prompts the key
         # to be the OID. But people felt that a more explicit interface would
         # be better in this case.
         self[key] = value
