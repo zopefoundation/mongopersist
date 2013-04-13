@@ -13,6 +13,7 @@
 ##############################################################################
 """Mongo Persistence Testing Support"""
 from __future__ import absolute_import
+import atexit
 import doctest
 import pymongo
 import re
@@ -38,23 +39,46 @@ OPTIONFLAGS = (doctest.NORMALIZE_WHITESPACE|
                #|doctest.REPORT_NDIFF
                )
 
+DBNAME = 'mongopersist_test'
+
+
+def getConnection():
+    return pymongo.Connection('localhost', 27017, tz_aware=False,
+                              fsync=False, j=False)
+
+
+def cleanDB(conn, dbname):
+    db = conn[dbname]
+    for cname in db.collection_names():
+        try:
+            db.drop_collection(cname)
+        except:
+            pass
+
+
+def dropDB():
+    getConnection().drop_database(DBNAME)
+
+
 def setUp(test):
     module.setUp(test)
-    test.globs['conn'] = pymongo.Connection('localhost', 27017, tz_aware=False)
-    test.globs['DBNAME'] = 'mongopersist_test'
-    test.globs['conn'].drop_database(test.globs['DBNAME'])
+    test.globs['conn'] = getConnection()
+    test.globs['DBNAME'] = DBNAME
+    cleanDB(test.globs['conn'], test.globs['DBNAME'])
     test.globs['commit'] = transaction.commit
     test.globs['dm'] = datamanager.MongoDataManager(
         test.globs['conn'],
         default_database=test.globs['DBNAME'],
         root_database=test.globs['DBNAME'])
 
+
 def tearDown(test):
     module.tearDown(test)
     transaction.abort()
-    test.globs['conn'].drop_database(test.globs['DBNAME'])
+    cleanDB(test.globs['conn'], test.globs['DBNAME'])
     test.globs['conn'].disconnect()
     resetCaches()
+
 
 def resetCaches():
     serialize.SERIALIZERS.__init__()
@@ -64,3 +88,4 @@ def resetCaches():
     serialize.PATH_RESOLVE_CACHE = {}
 
 cleanup.addCleanUp(resetCaches)
+atexit.register(dropDB)

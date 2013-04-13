@@ -572,7 +572,7 @@ Let's now start a new transaction with some modifications:
 However, in the mean time another transaction modifies the object. (We will do
 this here directly via Mongo for simplicity.)
 
-  >>> dm2._conn[DBNAME][person_cn].update(
+  >>> _ = dm2._conn[DBNAME][person_cn].update(
   ...     {'name': u'Stephan <Unknown>'},
   ...     {'$set': {'name': u'Stephan R.', '_py_serial': 3}})
   >>> pprint.pprint(dm2._conn[DBNAME][person_cn].find_one())

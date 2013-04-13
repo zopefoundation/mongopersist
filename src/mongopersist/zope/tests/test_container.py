@@ -12,6 +12,7 @@
 #
 ##############################################################################
 """Mongo Persistence Doc Tests"""
+import atexit
 import doctest
 
 import ZODB
@@ -28,16 +29,20 @@ from pprint import pprint
 from zope.exceptions import exceptionformatter
 from zope.app.testing import placelesssetup
 from zope.container import contained, btree
-from zope.testing import module, renormalizing
+from zope.testing import cleanup, module, renormalizing
 
 from mongopersist import datamanager, interfaces, serialize, testing
 from mongopersist.zope import container
+
+DBNAME = 'mongopersist_container_test'
+
 
 class ApplicationRoot(container.SimpleMongoContainer):
     _p_mongo_collection = 'root'
 
     def __repr__(self):
         return '<ApplicationRoot>'
+
 
 class SimplePerson(contained.Contained, persistent.Persistent):
     _p_mongo_collection = 'person'
@@ -50,6 +55,7 @@ class SimplePerson(contained.Contained, persistent.Persistent):
 
     def __repr__(self):
         return '<%s %s>' %(self.__class__.__name__, self)
+
 
 class Person(container.MongoContained, SimplePerson):
     pass
@@ -1288,12 +1294,16 @@ def handleObjectModifiedEvent(object, event):
     print event.__class__.__name__+':', repr(object)
 
 
+def dropDB():
+    testing.getConnection().drop_database(DBNAME)
+
+
 def setUp(test):
     placelesssetup.setUp(test)
     module.setUp(test)
-    test.globs['conn'] = pymongo.Connection('localhost', 27017, tz_aware=False)
-    test.globs['DBNAME'] = 'mongopersist_container_test'
-    test.globs['conn'].drop_database(test.globs['DBNAME'])
+    test.globs['conn'] = testing.getConnection()
+    test.globs['DBNAME'] = DBNAME
+    testing.cleanDB(test.globs['conn'], test.globs['DBNAME'])
     test.globs['dm'] = datamanager.MongoDataManager(
         test.globs['conn'],
         default_database=test.globs['DBNAME'],
@@ -1305,13 +1315,16 @@ def setUp(test):
         exceptionformatter.DEBUG_EXCEPTION_FORMATTER
     exceptionformatter.DEBUG_EXCEPTION_FORMATTER = 0
 
+
 def tearDown(test):
     placelesssetup.tearDown(test)
     module.tearDown(test)
+    testing.cleanDB(test.globs['conn'], test.globs['DBNAME'])
     test.globs['conn'].disconnect()
     testing.resetCaches()
     exceptionformatter.DEBUG_EXCEPTION_FORMATTER = \
         test.orig_DEBUG_EXCEPTION_FORMATTER
+
 
 def test_suite():
     return doctest.DocTestSuite(
@@ -1322,3 +1335,5 @@ def test_suite():
                      #|doctest.REPORT_NDIFF
                      )
         )
+
+atexit.register(dropDB)
