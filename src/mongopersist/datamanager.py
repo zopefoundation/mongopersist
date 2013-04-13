@@ -110,7 +110,7 @@ class CollectionWrapper(object):
     LOGGED_METHODS = ['insert', 'update', 'remove', 'save',
                       'find_and_modify', 'find_one', 'find', 'count']
     QUERY_METHODS = ['group', 'map_reduce', 'inline_map_reduce', 'find_one',
-                     'find', 'find_and_modify']
+                     'find', 'find_and_modify', 'aggregate', 'distinct', 'count']
     PROCESS_SPEC_METHODS = ['find_and_modify', 'find_one', 'find']
 
     def __init__(self, collection, datamanager):
