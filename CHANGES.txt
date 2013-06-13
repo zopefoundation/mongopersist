@@ -5,7 +5,8 @@ CHANGES
 0.8.4 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix transaction.abort() behaviour for complex objects. _py_type information
+  is not lost after transaction abort().
 
 
 0.8.3 (2013-04-09)

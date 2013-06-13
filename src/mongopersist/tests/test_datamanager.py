@@ -26,6 +26,15 @@ class Foo(persistent.Persistent):
 class Bar(persistent.Persistent):
     _p_mongo_sub_object = True
 
+class FooItem(object):
+    def __init__(self):
+        self.bar = 6
+
+class ComplexFoo(persistent.Persistent):
+    def __init__(self):
+        self.item = FooItem()
+        self.name = 'complex'
+
 def doctest_Root():
     r"""Root: General Test
 
@@ -743,6 +752,48 @@ def doctest_MongoDataManager_abort_conflict_detection():
         u'name': u'Eins'}
 
     """
+def doctest_MongoDataManager_abort_subobjects():
+    r"""MongoDataManager: abort(): Correct restoring of complex objects
+
+    Object, that contain subobjects should be restored to the state, exactly
+    matching one before initial loading.
+
+    1. Create a single record and make sure it is stored in db
+
+      >>> dm.reset()
+      >>> foo1_ref = dm.insert(ComplexFoo())
+      >>> dm.reset()
+
+      >>> coll = dm._get_collection_from_object(ComplexFoo())
+      >>> tuple(coll.find({}))
+      ({u'item': {u'bar': 6,
+                  u'_py_type': u'mongopersist.tests.test_datamanager.FooItem'},
+        u'_id': ObjectId('51b9987786a4bd2bfa5ad62c'),
+        u'name': u'complex'},)
+
+    2. Modify the item and flush it to database
+
+      >>> foo1 = dm.load(foo1_ref)
+      >>> foo1.name = 'modified'
+      >>> dm.flush()
+
+      >>> tuple(coll.find({}))
+      ({u'item': {u'bar': 6,
+                  u'_py_type': u'mongopersist.tests.test_datamanager.FooItem'},
+        u'_id': ObjectId('51b9987786a4bd2bfa5ad62c'),
+        u'name': u'modified'},)
+
+    3. Abort the current transaction and expect original state is restored
+
+      >>> dm.abort(transaction.get())
+      >>> tuple(coll.find({}))
+      ({u'item': {u'bar': 6,
+                  u'_py_type': u'mongopersist.tests.test_datamanager.FooItem'},
+        u'_id': ObjectId('51b9987786a4bd2bfa5ad62c'),
+        u'name': u'complex'},)
+
+
+    """
 
 def doctest_MongoDataManager_tpc_begin():
     r"""MongoDataManager: tpc_begin()
@@ -793,7 +844,16 @@ def doctest_MongoDataManager_tpc_finish():
 
       >>> dm.reset()
       >>> foo3 = dm.load(foo._p_oid)
+      >>> foo3.name = 'changed'
       >>> dm._registered_objects = [foo3.bar, foo3]
+      >>> dm.tpc_finish(transaction.get())
+      >>> foo3._p_serial
+      '\x00\x00\x00\x00\x00\x00\x00\x04'
+
+    When there is no change in the objects, serial is not incremented
+      >>> dm.reset()
+      >>> foo4 = dm.load(foo._p_oid)
+      >>> dm._registered_objects = [foo4.bar, foo4]
       >>> dm.tpc_finish(transaction.get())
       >>> foo3._p_serial
       '\x00\x00\x00\x00\x00\x00\x00\x04'
