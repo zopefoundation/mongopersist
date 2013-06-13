@@ -5,6 +5,9 @@ CHANGES
 0.8.4 (unreleased)
 ------------------
 
+- Fix insert followed by remove in the same transaction. The document was
+  not removed from mongo.
+
 - Fix transaction.abort() behaviour for complex objects. _py_type information
   is not lost after transaction abort().
 

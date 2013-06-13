@@ -291,10 +291,6 @@ class MongoDataManager(object):
     def remove(self, obj):
         if obj._p_oid is None:
             raise ValueError('Object does not have OID.', obj)
-        # Edge case: The object was just added in this transaction.
-        if obj in self._inserted_objects:
-            self._inserted_objects.remove(obj)
-            return
         # If the object is still in the ghost state, let's load it, so that we
         # have the state in case we abort the transaction later.
         if obj._p_changed is None:
@@ -302,6 +298,12 @@ class MongoDataManager(object):
         # Now we remove the object from Mongo.
         coll = self.get_collection_from_object(obj)
         coll.remove({'_id': obj._p_oid.id})
+        # Edge case: The object was just added in this transaction.
+        if obj in self._inserted_objects:
+            # but it still had to be removed from mongo, because insert
+            # inserted it just before
+            self._inserted_objects.remove(obj)
+            return
         self._removed_objects.append(obj)
         # Just in case the object was modified before removal, let's remove it
         # from the modification list:
