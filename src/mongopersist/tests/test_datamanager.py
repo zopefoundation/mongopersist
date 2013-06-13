@@ -478,7 +478,7 @@ def doctest_MongoDataManager_remove():
 
     The object is removed from the collection immediately:
 
-      >>> tuple(dm._get_collection_from_object(foo_ref).find())
+      >>> tuple(dm._get_collection_from_object(foo).find())
       ()
 
     Also, the object is added to the list of removed objects:
