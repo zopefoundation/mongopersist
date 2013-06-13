@@ -501,7 +501,7 @@ def doctest_MongoDataManager_remove():
       >>> foo3_ref = dm.insert(foo3)
       >>> dm.remove(foo3)
 
-    In this case, the object removed from Mongo and from the inserted object
+    In this case, the object is removed from Mongo and from the inserted object
     list and never added to the removed object list.
 
       >>> dm._inserted_objects
@@ -510,6 +510,32 @@ def doctest_MongoDataManager_remove():
       []
 
     """
+
+
+def doctest_MongoDataManager_insert_remove():
+    r"""MongoDataManager: insert and remove in the same transaction
+
+    Let's insert an object:
+
+      >>> foo = Foo('foo')
+      >>> foo_ref = dm.insert(foo)
+
+    And remove it ASAP:
+
+      >>> dm.remove(foo)
+
+      >>> dm._inserted_objects
+      []
+      >>> dm._removed_objects
+      []
+
+      >>> tuple(dm._get_collection_from_object(foo).find())
+      ()
+
+      >>> dm.reset()
+
+    """
+
 
 def doctest_MongoDataManager_setstate():
     r"""MongoDataManager: setstate()
