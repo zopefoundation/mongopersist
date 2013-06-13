@@ -13,6 +13,7 @@
 ##############################################################################
 """Object Serialization for Mongo/BSON"""
 from __future__ import absolute_import
+import copy
 import copy_reg
 
 import bson.dbref
@@ -517,7 +518,7 @@ class ObjectReader(object):
         if doc is None:
             raise ImportError(obj._p_oid)
         # Create a copy of the doc, so that we can modify it.
-        state_doc = doc.copy()
+        state_doc = copy.deepcopy(doc)
         # Remove unwanted attributes.
         state_doc.pop('_id')
         state_doc.pop('_py_persistent_type', None)
