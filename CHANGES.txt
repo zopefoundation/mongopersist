@@ -2,7 +2,7 @@
 CHANGES
 =======
 
-0.8.4 (unreleased)
+0.8.4 (2013-06-13)
 ------------------
 
 - Fix insert followed by remove in the same transaction. The document was
