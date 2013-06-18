@@ -1,13 +1,13 @@
-======================
-Mongo Data Persistence
-======================
+========================
+mongoDB Data Persistence
+========================
 
 This document outlines the general capabilities of the ``mongopersist``
-package. ``mongopersist`` is a Mongo storage implementation for persistent
+package. ``mongopersist`` is a mongoDB storage implementation for persistent
 Python objects. It is *not* a storage for the ZODB.
 
 The goal of ``mongopersist`` is to provide a data manager that serializes
-objects to Mongo at transaction boundaries. The mongo data manager is a
+objects to mongoDB at transaction boundaries. The mongo data manager is a
 persistent data manager, which handles events at transaction boundaries (see
 ``transaction.interfaces.IDataManager``) as well as events from the
 persistency framework (see ``persistent.interfaces.IPersistentDataManager``).
@@ -45,7 +45,7 @@ Let's now define a simple persistent object:
   ...         return '<%s %s>' %(self.__class__.__name__, self)
 
 We will fill out the other objects later. But for now, let's create a new
-person and store it in Mongo:
+person and store it in mongoDB:
 
   >>> stephan = Person(u'Stephan')
   >>> stephan
@@ -81,7 +81,7 @@ path of the class:
     u'today': datetime.datetime(2011, 10, 1, 9, 45),
     u'visited': []}]
 
-As you can see, the stored document for the person looks very Mongo. But oh
+As you can see, the stored document for the person looks very mongoDB. But oh
 no, I forgot to specify the full name for Stephan. Let's do that:
 
   >>> dm.root['stephan'].name = u'Stephan Richter'
@@ -112,7 +112,7 @@ Let's now add an address for Stephan. Addresses are also persistent objects:
   ...     def __repr__(self):
   ...         return '<%s %s>' %(self.__class__.__name__, self)
 
-MongoPersist supports a special attribute called ``_p_mongo_collection``,
+mongoDBPersist supports a special attribute called ``_p_mongo_collection``,
 which allows you to specify a custom collection to use.
 
   >>> stephan = dm.root['stephan']
@@ -152,7 +152,7 @@ But once we commit the transaction, everything is available:
 Non-Persistent Objects
 ----------------------
 
-As you can see, even the reference looks nice and uses the standard Mongo DB
+As you can see, even the reference looks nice and uses the standard mongoDB DB
 reference construct. But what about arbitrary non-persistent, but picklable,
 objects? Well, let's create a phone number object for that:
 
@@ -173,7 +173,7 @@ objects? Well, let's create a phone number object for that:
   >>> dm.root['stephan'].phone
   <Phone +1-978-394-5124>
 
-Let's now commit the transaction and look at the Mongo document again:
+Let's now commit the transaction and look at the mongoDB document again:
 
   >>> transaction.commit()
   >>> dm.root['stephan'].phone
@@ -350,7 +350,7 @@ automatically:
 Collection Sharing
 ------------------
 
-Since Mongo is so flexible, it sometimes makes sense to store multiple types
+Since mongoDB is so flexible, it sometimes makes sense to store multiple types
 of (similar) objects in the same collection. In those cases you instruct the
 object type to store its Python path as part of the document.
 
@@ -519,7 +519,7 @@ it to the mapping:
 Write-Conflict Detection
 ------------------------
 
-Since Mongo has no support for MVCC, it does not provide a concept of write
+Since mongoDB has no support for MVCC, it does not provide a concept of write
 conflict detection. However, a simple write-conflict detection can be easily
 implemented using a serial number on the document.
 
@@ -570,7 +570,7 @@ Let's now start a new transaction with some modifications:
   >>> dm2.root['stephan'].name = u'Stephan Richter'
 
 However, in the mean time another transaction modifies the object. (We will do
-this here directly via Mongo for simplicity.)
+this here directly via mongoDB for simplicity.)
 
   >>> _ = dm2._conn[DBNAME][person_cn].update(
   ...     {'name': u'Stephan <Unknown>'},
