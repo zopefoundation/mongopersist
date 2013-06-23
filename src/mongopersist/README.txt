@@ -481,7 +481,7 @@ Now that we have talked so much about the gory details on storing one object,
 what about mappings that reflect an entire collection, for example a
 collection of people.
 
-There are many approaches that can be taken. The folowing implementation
+There are many approaches that can be taken. The following implementation
 defines an attribute in the document as the mapping key and names a
 collection:
 
