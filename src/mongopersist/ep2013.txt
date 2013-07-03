@@ -1,0 +1,251 @@
+========================
+EuroPython 2013 snippets
+========================
+
+(Not necessarily in the order of appearance)
+
+Connection setup
+----------------
+
+  >>> import pymongo
+  >>> conn = pymongo.Connection('localhost', 27017, tz_aware=False)
+
+  >>> from mongopersist import datamanager
+  >>> DBNAME = 'mongopersist_test'
+  >>> dm = datamanager.MongoDataManager(
+  ...     conn,
+  ...     default_database=DBNAME,
+  ...     root_database=DBNAME)
+
+
+A helper function to print collection contents:
+
+  >>> from pprint import pprint
+  >>> def dumpCollection(coll):
+  ...     pprint(list(conn[DBNAME][coll].find()))
+
+
+Sample class
+------------
+
+  >>> import transaction
+
+  >>> import persistent
+  >>> import datetime
+
+Let's now define a simple persistent class:
+
+  >>> class Person(persistent.Persistent):
+  ...
+  ...     def __init__(self, name, phone=None, address=None, friends=None,
+  ...                  visited=(), birthday=None):
+  ...         self.name = name
+  ...         self.address = address
+  ...         self.friends = friends or {}
+  ...         self.visited = visited
+  ...         self.phone = phone
+  ...         self.birthday = birthday
+  ...         self.today = datetime.datetime.now()
+  ...
+  ...     def __str__(self):
+  ...         return self.name
+
+
+defaults -- adding an object
+----------------------------
+
+  >>> stephan = Person(u'Stephan')
+  >>> dm.root['stephan'] = stephan
+  >>> dumpCollection('__main__.Person')
+  [{u'_id': ObjectId('4e7ddf12e138237403000000'),
+    u'address': None,
+    u'birthday': None,
+    u'friends': {},
+    u'name': u'Stephan',
+    u'phone': None,
+    u'today': datetime.datetime(2013, 6, 18, 14, 48, 30, 970000),
+    u'visited': []}]
+
+  >>> transaction.commit()
+
+  >>> class Address(persistent.Persistent):
+  ...     _p_mongo_collection = 'address'
+  ...
+  ...     def __init__(self, city, zip):
+  ...         self.city = city
+  ...         self.zip = zip
+  ...
+  ...     def __str__(self):
+  ...         return '%s (%s)' %(self.city, self.zip)
+
+  >>> stephan.address = Address('Maynard', '01754')
+
+We need to commit the transaction, to push the data to mongoDB:
+
+  >>> transaction.commit()
+
+  >>> dumpCollection('address')
+  [{u'_id': ObjectId('51c05809b25d2b2e4f90cbdd'),
+    u'city': u'Maynard',
+    u'zip': u'01754'}]
+
+
+customizing -- _p_mongo_sub_object
+----------------------------------
+
+  >>> class Car(persistent.Persistent):
+  ...     _p_mongo_sub_object = True
+  ...
+  ...     def __init__(self, year, make, model):
+  ...         self.year = year
+  ...         self.make = make
+  ...         self.model = model
+
+  >>> stephan = dm.root['stephan']
+  >>> dm.root['stephan'].car = Car('2005', 'Ford', 'Explorer')
+
+  >>> transaction.commit()
+
+  >>> dumpCollection('__main__.Person')
+  [{u'_id': ObjectId('4e7ddf12e138237403000000'),
+    u'address': DBRef(u'address', ObjectId('4e7ddf12e138237403000000'), u'mongopersist_test'),
+    u'birthday': None,
+    u'car': {u'_py_persistent_type': u'__main__.Car',
+             u'make': u'Ford',
+             u'model': u'Explorer',
+             u'year': u'2005'},
+    u'friends': {},
+    u'name': u'Stephan',
+    u'phone': None,
+    u'today': datetime.datetime(2011, 10, 1, 9, 45)
+    u'visited': []}]
+
+
+beware of non Persistent objects
+--------------------------------
+
+  >>> class Phone(object):
+  ...
+  ...     def __init__(self, country, area, number):
+  ...         self.country = country
+  ...         self.area = area
+  ...         self.number = number
+  ...
+  ...     def __str__(self):
+  ...         return '%s-%s-%s' %(self.country, self.area, self.number)
+
+  >>> stephan = dm.root['stephan']
+  >>> stephan.phone = Phone('+1', '978', '394-5124')
+  >>> transaction.commit()
+
+  >>> dumpCollection('__main__.Person')
+  [{u'_id': ObjectId('51c059beb25d2b3157bf5adf'),
+    u'address': DBRef(u'address', ObjectId('51c059beb25d2b3157bf5ae2'), u'mongopersist_test'),
+    u'birthday': None,
+    u'car': {u'_py_persistent_type': u'__main__.Car',
+             u'make': u'Ford',
+             u'model': u'Explorer',
+             u'year': u'2005'},
+    u'friends': {},
+    u'name': u'Stephan',
+    u'phone': {u'_py_type': u'__main__.Phone',
+               u'area': u'978',
+               u'country': u'+1',
+               u'number': u'394-5124'},
+    u'today': datetime.datetime(2013, 6, 18, 14, 59, 42, 554000),
+    u'visited': []}]
+
+  >>> stephan.phone.number = '555-1234'
+  >>> transaction.commit()
+
+This is the problem, the value does not change:
+
+  >>> dumpCollection('__main__.Person')
+  [{...
+    u'phone': {u'_py_type': u'__main__.Phone',
+               u'area': u'978',
+               u'country': u'+1',
+               u'number': u'394-5124'},
+  ...]
+
+
+Add property
+------------
+
+  >>> stephan = dm.root['stephan']
+  >>> stephan.foobar = 42
+  >>> transaction.commit()
+
+  >>> dumpCollection('__main__.Person')
+  [{...
+    u'foobar': 42,
+    ...
+    u'name': u'Stephan',
+    ...]
+
+
+Delete property
+---------------
+
+  >>> stephan = dm.root['stephan']
+  >>> del stephan.foobar
+  >>> transaction.commit()
+
+  >>> dumpCollection('__main__.Person')
+  [{...
+    u'friends': {},
+    u'name': u'Stephan',
+    ...]
+
+
+Custom property
+---------------
+
+  >>> stephan = dm.root['stephan']
+
+  >>> stephan.friends[u'roger'] = Person(u'Roger')
+  >>> stephan.visited.append('Italy')
+
+  >>> transaction.commit()
+
+  >>> dumpCollection('__main__.Person')
+  [{...
+    u'friends': {u'roger': DBRef(u'__main__.Person', ObjectId('...'), u'mongopersist_test')},
+    u'name': u'Stephan',
+    ...
+    u'visited': [u'Italy']},
+   {...u'name': u'Roger',...]
+
+
+Custom serializes
+-----------------
+
+  >>> stephan = dm.root['stephan']
+  >>> stephan.birthday = datetime.date(1980, 1, 25)
+  >>> transaction.commit()
+
+  >>> dumpCollection('__main__.Person')
+  [{...
+    u'birthday': {u'_py_factory': u'datetime.date',
+                  u'_py_factory_args': [Binary('\x07\xbc\x01\x19', 0)]},
+  ...
+
+  >>> from mongopersist import serialize
+
+  >>> class DateSerializer(serialize.ObjectSerializer):
+  ...     def can_read(self, state):
+  ...         return isinstance(state, dict) and \
+  ...                state.get('_py_type') == 'datetime.date'
+  ...
+  ...     def read(self, state):
+  ...         return datetime.date.fromordinal(state['ordinal'])
+  ...
+  ...     def can_write(self, obj):
+  ...         return isinstance(obj, datetime.date)
+  ...
+  ...     def write(self, obj):
+  ...         return {'_py_type': 'datetime.date', 'ordinal': obj.toordinal()}
+
+  >>> serialize.SERIALIZERS.append(DateSerializer())
+
+  u'birthday': {u'_py_type': u'datetime.date', u'ordinal': 722839},

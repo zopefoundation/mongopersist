@@ -62,6 +62,11 @@ def test_suite():
             checker=testing.checker,
             optionflags=testing.OPTIONFLAGS),
         doctest.DocFileSuite(
+            '../ep2013.txt',
+            setUp=setUp, tearDown=tearDown,
+            checker=testing.checker,
+            optionflags=testing.OPTIONFLAGS),
+        doctest.DocFileSuite(
             '../../../README.rst',
             setUp=setUpRST, tearDown=tearDown,
             checker=testing.checker,
