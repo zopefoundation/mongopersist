@@ -312,6 +312,7 @@ class ObjectReader(object):
     def __init__(self, jar):
         self._jar = jar
         self._single_map_cache = {}
+        self.preferPersistent=True
 
     def simple_resolve(self, path):
         # We try to look up the klass from a cache. The important part here is
@@ -485,10 +486,11 @@ class ObjectReader(object):
             # All lists are converted to persistent lists, so that their state
             # changes are noticed. Also make sure that all value states are
             # converted to objects.
-            sub_obj = PersistentList(
-                [self.get_object(value, obj) for value in state])
-            sub_obj._p_mongo_doc_object = obj
-            sub_obj._p_jar = self._jar
+            sub_obj = [self.get_object(value, obj) for value in state]
+            if self.preferPersistent:
+                sub_obj = PersistentList(sub_obj)
+                sub_obj._p_mongo_doc_object = obj
+                sub_obj._p_jar = self._jar
             return sub_obj
         if isinstance(state, dict):
             # All dictionaries are converted to persistent dictionaries, so
@@ -499,11 +501,13 @@ class ObjectReader(object):
                 items = state['dict_data']
             else:
                 items = state.items()
-            sub_obj = PersistentDict(
+            sub_obj = dict(
                 [(self.get_object(name, obj), self.get_object(value, obj))
                  for name, value in items])
-            sub_obj._p_mongo_doc_object = obj
-            sub_obj._p_jar = self._jar
+            if self.preferPersistent:
+                sub_obj = PersistentDict(sub_obj)
+                sub_obj._p_mongo_doc_object = obj
+                sub_obj._p_jar = self._jar
             return sub_obj
         return state
 
