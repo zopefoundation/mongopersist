@@ -33,6 +33,7 @@ class People(container.AllItemsMongoContainer):
     _p_mongo_collection = 'people'
     _m_database = 'performance'
     _m_collection = 'person'
+    _m_mapping_key = 'name'
 
 class Address(persistent.Persistent):
     _p_mongo_collection = 'address'
@@ -57,126 +58,145 @@ class Person2(Person):
     pass
 
 
-def printResult(text, t1, t2, count=None):
-    dur = t2-t1
-    text += ':'
-    ops = ''
-    if count:
-        ops = "%d ops/second" % (count / dur)
+class PerformanceBase(object):
+    personKlass = None
+    person2Klass = None
 
-    print '%-25s %.4f secs %s' % (text, dur, ops)
+    def printResult(self, text, t1, t2, count=None):
+        dur = t2-t1
+        text += ':'
+        ops = ''
+        if count:
+            ops = "%d ops/second" % (count / dur)
 
+        print '%-25s %.4f secs %s' % (text, dur, ops)
 
-def run_basic_crud(options):
-    conn = pymongo.Connection('localhost', 27017, tz_aware=False)
-    dm = datamanager.MongoDataManager(
-        conn,
-        default_database='performance',
-        root_database='performance',
-        conflict_handler_factory=conflict.ResolvingSerialConflictHandler)
-    if options.reload:
-        conn.drop_database('performance')
-        dm.root['people'] = people = People()
+    def getPeople(self, options):
+        pass
 
-        # Profile inserts
+    def run_basic_crud(self, options):
+        people = self.getPeople(options)
+
+        peopleCnt = len(people)
+        # Profile slow read
         transaction.begin()
         t1 = time.time()
-        for idx in xrange(options.size):
-            klass = Person if (MULTIPLE_CLASSES and idx % 2) else Person2
-            people[None] = klass('Mr Number %.5i' %idx, random.randint(0, 100))
-        transaction.commit()
-        t2 = time.time()
-        printResult('Insert', t1, t2, options.size)
-    else:
-        people = dm.root['people']
-
-    peopleCnt = len(people)
-    # Profile slow read
-    transaction.begin()
-    t1 = time.time()
-    [people[name].name for name in people]
-    #cProfile.runctx(
-    #    '[people[name].name for name in people]', globals(), locals())
-    t2 = time.time()
-    transaction.commit()
-    printResult('Slow Read', t1, t2, peopleCnt)
-
-    # Profile fast read (values)
-    transaction.begin()
-    t1 = time.time()
-    [person.name for person in people.values()]
-    #cProfile.runctx(
-    #    '[person.name for person in people.find()]', globals(), locals())
-    t2 = time.time()
-    transaction.commit()
-    printResult('Fast Read (values)', t1, t2, peopleCnt)
-
-    # Profile fast read
-    transaction.begin()
-    t1 = time.time()
-    [person.name for person in people.find()]
-    #cProfile.runctx(
-    #    '[person.name for person in people.find()]', globals(), locals())
-    t2 = time.time()
-    transaction.commit()
-    printResult('Fast Read (find)', t1, t2, peopleCnt)
-
-    # Profile object caching
-    transaction.begin()
-    t1 = time.time()
-    [person.name for person in people.values()]
-    [person.name for person in people.values()]
-    #cProfile.runctx(
-    #    '[person.name for person in people.values()]', globals(), locals())
-    t2 = time.time()
-    transaction.commit()
-    printResult('Fast Read (caching x2)', t1, t2, peopleCnt*2)
-
-    transaction.begin()
-    t1 = time.time()
-    [person.name for person in people.values()]
-    [person.name for person in people.values()]
-    [person.name for person in people.values()]
-    #cProfile.runctx(
-    #    '[person.name for person in people.values()]', globals(), locals())
-    t2 = time.time()
-    transaction.commit()
-    printResult('Fast Read (caching x3)', t1, t2, peopleCnt*3)
-
-    transaction.begin()
-    t1 = time.time()
-    [person.name for person in people.values()]
-    [person.name for person in people.values()]
-    [person.name for person in people.values()]
-    [person.name for person in people.values()]
-    #cProfile.runctx(
-    #    '[person.name for person in people.values()]', globals(), locals())
-    t2 = time.time()
-    transaction.commit()
-    printResult('Fast Read (caching x4)', t1, t2, peopleCnt*4)
-
-    if options.modify:
-        # Profile modification
-        t1 = time.time()
-        def modify():
-            for person in list(people.find()):
-                person.name += 'X'
-                person.age += 1
-            transaction.commit()
-        modify()
+        [people[name].name for name in people]
         #cProfile.runctx(
-        #    'modify()', globals(), locals())
+        #    '[people[name].name for name in people]', globals(), locals())
         t2 = time.time()
-        printResult('Modification', t1, t2, peopleCnt)
-
-    if options.delete:
-        # Profile deletion
-        t1 = time.time()
-        for name in people.keys():
-            del people[name]
         transaction.commit()
+        self.printResult('Slow Read', t1, t2, peopleCnt)
+
+        # Profile fast read (values)
+        transaction.begin()
+        t1 = time.time()
+        [person.name for person in people.values()]
+        #cProfile.runctx(
+        #    '[person.name for person in people.find()]', globals(), locals())
         t2 = time.time()
-        printResult('Deletion', t1, t2, peopleCnt)
+        transaction.commit()
+        self.printResult('Fast Read (values)', t1, t2, peopleCnt)
+
+        # Profile fast read
+        transaction.begin()
+        t1 = time.time()
+        [person.name for person in people.find()]
+        #cProfile.runctx(
+        #    '[person.name for person in people.find()]', globals(), locals())
+        t2 = time.time()
+        transaction.commit()
+        self.printResult('Fast Read (find)', t1, t2, peopleCnt)
+
+        # Profile object caching
+        transaction.begin()
+        t1 = time.time()
+        [person.name for person in people.values()]
+        [person.name for person in people.values()]
+        #cProfile.runctx(
+        #    '[person.name for person in people.values()]', globals(), locals())
+        t2 = time.time()
+        transaction.commit()
+        self.printResult('Fast Read (caching x2)', t1, t2, peopleCnt*2)
+
+        transaction.begin()
+        t1 = time.time()
+        [person.name for person in people.values()]
+        [person.name for person in people.values()]
+        [person.name for person in people.values()]
+        #cProfile.runctx(
+        #    '[person.name for person in people.values()]', globals(), locals())
+        t2 = time.time()
+        transaction.commit()
+        self.printResult('Fast Read (caching x3)', t1, t2, peopleCnt*3)
+
+        transaction.begin()
+        t1 = time.time()
+        [person.name for person in people.values()]
+        [person.name for person in people.values()]
+        [person.name for person in people.values()]
+        [person.name for person in people.values()]
+        #cProfile.runctx(
+        #    '[person.name for person in people.values()]', globals(), locals())
+        t2 = time.time()
+        transaction.commit()
+        self.printResult('Fast Read (caching x4)', t1, t2, peopleCnt*4)
+
+        if options.modify:
+            # Profile modification
+            t1 = time.time()
+            def modify():
+                for person in list(people.find()):
+                    person.name += 'X'
+                    person.age += 1
+                transaction.commit()
+            modify()
+            #cProfile.runctx(
+            #    'modify()', globals(), locals())
+            t2 = time.time()
+            self.printResult('Modification', t1, t2, peopleCnt)
+
+        if options.delete:
+            # Profile deletion
+            t1 = time.time()
+            for name in people.keys():
+                del people[name]
+            transaction.commit()
+            t2 = time.time()
+            self.printResult('Deletion', t1, t2, peopleCnt)
+
+
+class PerformanceMongo(PerformanceBase):
+    personKlass = Person
+    person2Klass = Person2
+
+    def getPeople(self, options):
+        conn = pymongo.Connection('localhost', 27017, tz_aware=False)
+        dm = datamanager.MongoDataManager(
+            conn,
+            default_database='performance',
+            root_database='performance',
+            conflict_handler_factory=conflict.ResolvingSerialConflictHandler)
+        if options.reload:
+            conn.drop_database('performance')
+            dm.root['people'] = people = People()
+
+            # Profile inserts
+            transaction.begin()
+            t1 = time.time()
+            for idx in xrange(options.size):
+                klass = (self.personKlass if (MULTIPLE_CLASSES and idx % 2)
+                         else self.person2Klass)
+                people[None] = klass('Mr Number %.5i' % idx,
+                                     random.randint(0, 100))
+            transaction.commit()
+            t2 = time.time()
+            self.printResult('Insert', t1, t2, options.size)
+        else:
+            people = dm.root['people']
+
+        return people
+
 
 parser = optparse.OptionParser()
 parser.usage = '%prog [options]'
@@ -201,10 +221,11 @@ parser.add_option(
     dest='delete', default=True,
     help='A flag, when set, causes the data not to be deleted at the end.')
 
+
 def main(args=None):
     # Parse command line options.
     if args is None:
         args = sys.argv[1:]
     options, args = parser.parse_args(args)
 
-    run_basic_crud(options)
+    PerformanceMongo().run_basic_crud(options)
