@@ -95,7 +95,9 @@ class ObjectWriter(object):
 
     def get_collection_name(self, obj):
         __traceback_info__ = obj
-        db_name = getattr(obj, '_p_mongo_database', self._jar.default_database)
+        db_name = getattr(
+            obj, '_p_mongo_database',
+            self._jar.default_database if self._jar else None)
         try:
             coll_name = obj._p_mongo_collection
         except AttributeError:
@@ -267,6 +269,7 @@ class ObjectWriter(object):
             # XXX: Handle newargs; see ZODB.serialize.ObjectWriter.serialize
             # Go through each attribute and search for persistent references.
             doc = self.get_state(obj.__getstate__())
+
         if getattr(obj, '_p_mongo_store_type', False):
             doc['_py_persistent_type'] = get_dotted_name(obj.__class__)
 

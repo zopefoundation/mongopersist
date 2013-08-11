@@ -238,6 +238,8 @@ class MongoDataManager(object):
         # object just once.
         written = []
         for obj in self._registered_objects:
+            __traceback_info__ = obj
+            orig = obj
             if getattr(obj, '_p_mongo_sub_object', False):
                 # Make sure we write the object representing a document in a
                 # collection and not a sub-object.
