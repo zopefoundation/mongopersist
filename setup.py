@@ -53,6 +53,7 @@ setup(
         'setuptools',
         'zope.dottedname',
         'zope.interface',
+        'zope.schema',
         'zope.exceptions >=3.7.1',  # required for extract_stack
     ],
     include_package_data=True,
