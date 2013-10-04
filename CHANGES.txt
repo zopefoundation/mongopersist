@@ -5,7 +5,8 @@ CHANGES
 0.8.5 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Added serializer for ``datetime.time``, since the loaded reduced state is
+  not usable (due to string to unicode conversion).
 
 
 0.8.4 (2013-06-13)

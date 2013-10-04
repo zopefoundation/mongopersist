@@ -30,3 +30,20 @@ class DateSerializer(serialize.ObjectSerializer):
     def write(self, obj):
         return {'_py_type': 'datetime.date',
                 'ordinal': obj.toordinal()}
+
+
+class TimeSerializer(serialize.ObjectSerializer):
+
+    def can_read(self, state):
+        return isinstance(state, dict) and \
+               state.get('_py_type') == 'datetime.time'
+
+    def read(self, state):
+        return datetime.time(*state['components'])
+
+    def can_write(self, obj):
+        return isinstance(obj, datetime.time)
+
+    def write(self, obj):
+        return {'_py_type': 'datetime.time',
+                'components': [obj.hour, obj.minute, obj.second]}
