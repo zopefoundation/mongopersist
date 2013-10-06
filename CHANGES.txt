@@ -5,6 +5,12 @@ CHANGES
 0.8.5 (unreleased)
 ------------------
 
+- Fixed a bug where shared colelction among derived classes would not work
+  consistently.
+
+- Fixed a bug during initialization of persistent sub-objects in that changes
+  would not be seen in the transaction once the datamanger was flushed.
+
 - Added serializer for ``datetime.time``, since the loaded reduced state is
   not usable (due to string to unicode conversion).
 

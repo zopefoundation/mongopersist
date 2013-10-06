@@ -391,13 +391,8 @@ When loading the addresses, they should be of the right type:
   <Address Maynard (01754)>
   >>> dm.root['stephan'].address2
   <ExtendedAddress Tettau (01945) in Germany>
-
-
-XXX: BUG with detecting derived classes properly. So for now just specify the
-collection explicitely.
-
-#  >>> dm.root['stephan'].address3
-#  <ExtendedAddress Arnsdorf (01945) in Germany>
+  >>> dm.root['stephan'].address3
+  <ExtendedAddress Arnsdorf (01945) in Germany>
 
 
 Tricky Cases

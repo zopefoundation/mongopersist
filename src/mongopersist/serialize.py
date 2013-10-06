@@ -119,9 +119,15 @@ class ObjectWriter(object):
             result = coll.find({'collection': coll_name,
                                 'database': db_name})
             if result.count() > 0:
-                setattr(obj, '_p_mongo_store_type', True)
+                setattr(obj.__class__, '_p_mongo_store_type', True)
             map['doc_has_type'] = getattr(obj, '_p_mongo_store_type', False)
             coll.save(map)
+            result = map
+        # Make sure that derived classes that share a collection know they
+        # have to store their type.
+        if (result['doc_has_type'] and
+            not getattr(obj, '_p_mongo_store_type', False)):
+            obj.__class__._p_mongo_store_type = True
         AVAILABLE_NAME_MAPPINGS.add(map_hash)
         return db_name, coll_name
 
@@ -158,9 +164,9 @@ class ObjectWriter(object):
             state = {'_py_persistent_type': get_dotted_name(args[0])}
         else:
             state = {'_py_factory': get_dotted_name(factory),
-                     '_py_factory_args': self.get_state(args, seen)}
+                     '_py_factory_args': self.get_state(args, obj, seen)}
         for name, value in obj_state.items():
-            state[name] = self.get_state(value, seen)
+            state[name] = self.get_state(value, obj, seen)
         return state
 
     def get_persistent_state(self, obj, seen):
@@ -179,7 +185,7 @@ class ObjectWriter(object):
         # deserialization later.
         return dbref
 
-    def get_state(self, obj, seen=None):
+    def get_state(self, obj, pobj=None, seen=None):
         seen = seen or []
         if isinstance(obj, interfaces.MONGO_NATIVE_TYPES):
             # If we have a native type, we'll just use it as the state.
@@ -207,10 +213,19 @@ class ObjectWriter(object):
             # need to be able to properly encode those.
             return {'_py_type': 'type',
                     'path': get_dotted_name(obj)}
+
+        # We need to make sure that the object's jar and doc-object are
+        # set. This is important for the case when a sub-object was just
+        # added.
+        if getattr(obj, '_p_mongo_sub_object', False):
+            if obj._p_jar is None:
+                obj._p_jar = pobj._p_jar
+                obj._p_mongo_doc_object = pobj
+
         if isinstance(obj, (tuple, list, PersistentList)):
             # Make sure that all values within a list are serialized
             # correctly. Also convert any sequence-type to a simple list.
-            return [self.get_state(value, seen) for value in obj]
+            return [self.get_state(value, pobj, seen) for value in obj]
         if isinstance(obj, (dict, PersistentDict)):
             # Same as for sequences, make sure that the contained values are
             # properly serialized.
@@ -218,7 +233,7 @@ class ObjectWriter(object):
             has_non_string_key = False
             data = []
             for key, value in obj.items():
-                data.append((key, self.get_state(value, seen)))
+                data.append((key, self.get_state(value, pobj, seen)))
                 has_non_string_key |= not isinstance(key, basestring)
             if not has_non_string_key:
                 # The easy case: all keys are strings:
@@ -226,7 +241,8 @@ class ObjectWriter(object):
             else:
                 # We first need to reduce the keys and then produce a data
                 # structure.
-                data = [(self.get_state(key), value) for key, value in data]
+                data = [(self.get_state(key, pobj), value)
+                        for key, value in data]
                 return {'dict_data': data}
 
         if isinstance(obj, persistent.Persistent):
@@ -240,7 +256,7 @@ class ObjectWriter(object):
         return self.get_non_persistent_state(obj, seen)
 
     def get_full_state(self, obj):
-        doc = self.get_state(obj.__getstate__())
+        doc = self.get_state(obj.__getstate__(), obj)
         # Add a persistent type info, if necessary.
         if getattr(obj, '_p_mongo_store_type', False):
             doc['_py_persistent_type'] = get_dotted_name(obj.__class__)
@@ -268,7 +284,7 @@ class ObjectWriter(object):
         else:
             # XXX: Handle newargs; see ZODB.serialize.ObjectWriter.serialize
             # Go through each attribute and search for persistent references.
-            doc = self.get_state(obj.__getstate__())
+            doc = self.get_state(obj.__getstate__(), obj)
 
         if getattr(obj, '_p_mongo_store_type', False):
             doc['_py_persistent_type'] = get_dotted_name(obj.__class__)
@@ -315,7 +331,7 @@ class ObjectReader(object):
     def __init__(self, jar):
         self._jar = jar
         self._single_map_cache = {}
-        self.preferPersistent=True
+        self.preferPersistent = True
 
     def simple_resolve(self, path):
         # We try to look up the klass from a cache. The important part here is

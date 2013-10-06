@@ -1319,6 +1319,14 @@ def setUp(test):
 def tearDown(test):
     placelesssetup.tearDown(test)
     module.tearDown(test)
+    try:
+        del Person._p_mongo_store_type
+    except AttributeError:
+        pass
+    try:
+        del SimplePerson._p_mongo_store_type
+    except AttributeError:
+        pass
     testing.cleanDB(test.globs['conn'], test.globs['DBNAME'])
     test.globs['conn'].disconnect()
     testing.resetCaches()

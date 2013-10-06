@@ -301,7 +301,7 @@ def doctest_ObjectWriter_get_state_Persistent():
 
       >>> top2 = Top()
       >>> top2._p_mongo_sub_object = True
-      >>> writer.get_state(top2)
+      >>> writer.get_state(top2, top)
       {'_py_persistent_type': 'mongopersist.tests.test_serialize.Top'}
     """
 

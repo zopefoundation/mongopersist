@@ -17,11 +17,29 @@ import persistent
 import transaction
 from bson import dbref, objectid
 
-from mongopersist import conflict, interfaces, testing, datamanager
+from mongopersist import conflict, interfaces, serialize, testing, datamanager
+
+class Root(persistent.Persistent):
+    pass
 
 class Foo(persistent.Persistent):
     def __init__(self, name=None):
         self.name = name
+
+    def __repr__(self):
+        return '<%s %s>' %(self.__class__.__name__, self.name)
+
+class Super(persistent.Persistent):
+    _p_mongo_collection = 'Super'
+
+    def __init__(self, name=None):
+        self.name = name
+
+    def __repr__(self):
+        return '<%s %s>' %(self.__class__.__name__, self.name)
+
+class Sub(Super):
+    pass
 
 class Bar(persistent.Persistent):
     _p_mongo_sub_object = True
@@ -188,7 +206,7 @@ def doctest_MongoDataManager_object_dump_load_reset():
       >>> foo._p_changed
       True
       >>> dm._registered_objects
-      [<mongopersist.tests.test_datamanager.Foo object at 0x2fe1f50>]
+      [<Foo Foo>]
 
       >>> foo_ref = dm.dump(foo)
 
@@ -346,7 +364,7 @@ def doctest_MongoDataManager_flush():
     The object is now registered with the data manager:
 
       >>> dm._registered_objects
-      [<mongopersist.tests.test_datamanager.Foo object at 0x2f7b9b0>]
+      [<Foo Foo>]
       >>> foo_new._p_serial
       '\x00\x00\x00\x00\x00\x00\x00\x01'
 
@@ -408,22 +426,21 @@ def doctest_MongoDataManager_insert():
     It is also added to the list of inserted objects:
 
       >>> dm._inserted_objects
-      [<mongopersist.tests.test_datamanager.Foo object at 0x18d41b8>]
+      [<Foo foo>]
 
     Let's make sure it is really in Mongo:
 
       >>> dm.reset()
       >>> foo_new = dm.load(foo_ref)
       >>> foo_new
-      <mongopersist.tests.test_datamanager.Foo object at 0x27cade8>
+      <Foo foo>
 
     Notice, that we cannot insert the object again:
 
       >>> dm.insert(foo_new)
       Traceback (most recent call last):
       ...
-      ValueError: ('Object has already an OID.',
-                   <mongopersist.tests.test_datamanager.Foo object at 0x1fecde8>)
+      ValueError: ('Object has already an OID.', <Foo foo>)
 
     Finally, registering a new object will not trigger an insert, but only
     schedule the object for writing. This is done, since sometimes objects are
@@ -434,7 +451,7 @@ def doctest_MongoDataManager_insert():
       >>> dm.register(foo2)
 
       >>> dm._registered_objects
-      [<mongopersist.tests.test_datamanager.Foo object at 0x3087b18>]
+      [<Foo Foo 2>]
 
     But storing works as expected (flush is implicit before find):
 
@@ -484,14 +501,13 @@ def doctest_MongoDataManager_remove():
     Also, the object is added to the list of removed objects:
 
       >>> dm._removed_objects
-      [<mongopersist.tests.test_datamanager.Foo object at 0x1693140>]
+      [<Foo foo>]
 
     Note that you cannot remove objects that are not in the database:
 
       >>> dm.remove(Foo('Foo 2'))
       Traceback (most recent call last):
-      ValueError: ('Object does not have OID.',
-                   <mongopersist.tests.test_datamanager.Foo object at 0x1982ed8>)
+      ValueError: ('Object does not have OID.', <Foo Foo 2>)
 
     There is an edge case, if the object is inserted and removed in the same
     transaction:
@@ -634,12 +650,12 @@ def doctest_MongoDataManager_abort():
       >>> foo = dm.load(foo_ref)
       >>> foo.name = '1'
       >>> dm._registered_objects
-      [<mongopersist.tests.test_datamanager.Foo object at 0x187b1b8>]
+      [<Foo 1>]
 
       >>> foo2 = dm.load(foo2_ref)
       >>> dm.remove(foo2)
       >>> dm._removed_objects
-      [<mongopersist.tests.test_datamanager.Foo object at 0x1e5c140>]
+      [<Foo two>]
 
       >>> foo3_ref = dm.insert(Foo('three'))
 
@@ -876,7 +892,8 @@ def doctest_MongoDataManager_tpc_finish():
       >>> foo3._p_serial
       '\x00\x00\x00\x00\x00\x00\x00\x04'
 
-    When there is no change in the objects, serial is not incremented
+    When there is no change in the objects, serial is not incremented:
+
       >>> dm.reset()
       >>> foo4 = dm.load(foo._p_oid)
       >>> dm._registered_objects = [foo4.bar, foo4]
@@ -910,6 +927,126 @@ def doctest_MongoDataManager_sortKey():
       >>> dm.sortKey()
       ('MongoDataManager', 0)
     """
+
+
+def doctest_MongoDataManager_sub_objects():
+    r"""MongoDataManager: Properly handling initialization of sub-objects.
+
+    When `_p_mongo_sub_object` objects are loaded from Mongo, their `_p_jar`
+    and more importantly their `_p_mongo_doc_object` attributes are
+    set.
+
+    However, when a sub-object is initially added, those attributes are
+    missing.
+
+      >>> foo = Foo('one')
+      >>> dm.root['one'] = foo
+      >>> dm.tpc_finish(None)
+
+      >>> foo = dm.root['one']
+      >>> foo._p_changed
+
+      >>> foo.list = serialize.PersistentList()
+      >>> foo.list._p_jar
+      >>> getattr(foo.list, '_p_mongo_doc_object', 'Missing')
+      'Missing'
+
+    Of course, the parent object has changed, since an attribute has been set
+    on it.
+
+      >>> foo._p_changed
+      True
+
+    Now, since we are dealing with an external database and queries, it
+    frequently happens that all changed objects are flushed to the database
+    before running a query. In our case, this saves the main object andmarks
+    it unchanged again:
+
+      >>> dm.flush()
+      >>> foo._p_changed
+      False
+
+    However, while flushing, no object is read from the database again.  If
+    the jar and document obejct are not set on the sub-object, any changes to
+    it would not be seen. Thus, the serialization process *must* assign the
+    jar and document object attributes, if not set.
+
+      >>> foo.list._p_jar is dm
+      True
+      >>> foo.list._p_mongo_doc_object is foo
+      True
+
+    Let's now ensure that changing the sub-object will have the proper effect:
+
+      >>> foo.list.append(1)
+      >>> foo.list._p_changed
+      True
+      >>> dm.tpc_finish(None)
+
+      >>> foo = dm.root['one']
+      >>> foo.list
+      [1]
+
+    Note: Most of the implementation of this feature is in the `getState()`
+    method of the `ObjectWriter` class.
+    """
+
+
+def doctest_MongoDataManager_collection_sharing():
+    r"""MongoDataManager: Properly share collections with sub-classes
+
+    When objects do not specify a collection, then a collection based on the
+    class path is created for them. In that case, when a sub-class is created,
+    the same collection should be used. However, during de-serialization, it
+    is important that we select the correct class to use.
+
+      >>> dm.root['app'] = Root()
+
+      >>> dm.root['app'].one = Super('one')
+      >>> dm.root['app'].one
+      <Super one>
+
+      >>> dm.root['app'].two = Sub('two')
+      >>> dm.root['app'].two
+      <Sub two>
+
+      >>> dm.root['app'].three = Sub('three')
+      >>> dm.root['app'].three
+      <Sub three>
+
+      >>> dm.tpc_finish(None)
+
+    Let's now load everything again:
+
+      >>> dm.root['app'].one
+      <Super one>
+      >>> dm.root['app'].two
+      <Sub two>
+      >>> dm.root['app'].three
+      <Sub three>
+      >>> dm.tpc_finish(None)
+
+    Make sure that after a restart, the objects can still be stored.
+
+      >>> serialize.COLLECTIONS_WITH_TYPE = set()
+      >>> serialize.AVAILABLE_NAME_MAPPINGS = set()
+      >>> serialize.PATH_RESOLVE_CACHE = {}
+      >>> del Sub._p_mongo_store_type
+
+      >>> dm2 = datamanager.MongoDataManager(
+      ...     conn, default_database = DBNAME, root_database = DBNAME)
+
+      >>> dm2.root['app'].four = Sub('four')
+      >>> dm2.tpc_finish(None)
+
+      >>> serialize.COLLECTIONS_WITH_TYPE = set()
+      >>> serialize.AVAILABLE_NAME_MAPPINGS = set()
+      >>> serialize.PATH_RESOLVE_CACHE = {}
+
+      >>> dm2.root['app'].four
+      <Sub four>
+    """
+
 
 def doctest_process_spec():
     r"""process_spec(): General test
