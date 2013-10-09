@@ -219,7 +219,8 @@ class ObjectWriter(object):
         # added.
         if getattr(obj, '_p_mongo_sub_object', False):
             if obj._p_jar is None:
-                obj._p_jar = pobj._p_jar
+                if pobj._p_jar is not None:
+                    obj._p_jar = pobj._p_jar
                 obj._p_mongo_doc_object = pobj
 
         if isinstance(obj, (tuple, list, PersistentList)):
