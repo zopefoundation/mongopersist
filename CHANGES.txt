@@ -2,35 +2,42 @@
 CHANGES
 =======
 
-0.8.5 (unreleased)
+0.9.0 (unreleased)
 ------------------
 
-- Fixed a bug where shared colelction among derived classes would not work
-  consistently.
+- Feature: Added a container-level cache to the ``MongoContainer``
+  object. This cache is only used within the transaction, but it reduced calls
+  to Mongo by 40% in a real world use. The cache can be turned off by setting
+  ``mongopersist.zope.container.USE_CONTAINER_CACHE`` to false.
 
-- Fixed a bug during initialization of persistent sub-objects in that changes
-  would not be seen in the transaction once the datamanger was flushed.
+- Feature: Added serializer for ``datetime.time``, since the loaded reduced
+  state is not usable (due to string to unicode conversion).
 
-- Added serializer for ``datetime.time``, since the loaded reduced state is
-  not usable (due to string to unicode conversion).
+- Bug: Fixed a bug where shared collection among derived classes would not
+  work consistently.
+
+- Bug: Fixed a bug during initialization of persistent sub-objects in that
+  changes would not be seen in the transaction once the datamanger was
+  flushed.
+
 
 
 0.8.4 (2013-06-13)
 ------------------
 
-- Fix insert followed by remove in the same transaction. The document was
+- Bug: Fix insert followed by remove in the same transaction. The document was
   not removed from mongo.
 
-- Fix transaction.abort() behaviour for complex objects. _py_type information
-  is not lost after transaction abort().
+- Bug: Fix ``transaction.abort()`` behaviour for complex objects. ``_py_type``
+  information is not lost after transaction abort.
 
 
 0.8.3 (2013-04-09)
 ------------------
 
-- Fixed ``MongoContainer`` vs ``IdNamesMongoContainer``
-  ``add`` and ``__setitem__`` behavour on ``None`` keys.
-  ``ObjectAddedEvent`` or ``ObjectMovedEvent`` were not fired because
+- Bug: Fixed ``MongoContainer`` vs ``IdNamesMongoContainer`` ``add`` and
+  ``__setitem__`` behavour on ``None`` keys.  ``ObjectAddedEvent`` or
+  ``ObjectMovedEvent`` were not fired because
   ``zope.container.contained.setitem`` got the just inserted object back.
 
   ``MongoContainer`` always requires ``_m_mapping_key`` and uses that attribute
@@ -44,16 +51,16 @@ CHANGES
 0.8.2 (2013-04-03)
 ------------------
 
-- Fixed ``check_conflict``: make sure we use the same db and collection
+- Bug: Fixed ``check_conflict``: make sure we use the same db and collection
   as in the object
 
 
 0.8.1 (2013-03-19)
 ------------------
 
-- Fixed ``_p_changed`` setting on object loading which was caused by assigning
-  directly to ``__name__``. That caused all objects read from containers to be
-  marked changed on load. That wrecked cache performance too.
+- Bug: Fixed ``_p_changed`` setting on object loading which was caused by
+  assigning directly to ``__name__``. That caused all objects read from
+  containers to be marked changed on load. That wrecked cache performance too.
 
 
 0.8.0 (2013-02-09)

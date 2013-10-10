@@ -14,6 +14,7 @@
 """Mongo Persistence Doc Tests"""
 import atexit
 import doctest
+import unittest
 
 import ZODB
 import ZODB.DemoStorage
@@ -1315,6 +1316,9 @@ def setUp(test):
         exceptionformatter.DEBUG_EXCEPTION_FORMATTER
     exceptionformatter.DEBUG_EXCEPTION_FORMATTER = 0
 
+def noCacheSetUp(test):
+    container.USE_CONTAINER_CACHE = False
+    setUp(test)
 
 def tearDown(test):
     placelesssetup.tearDown(test)
@@ -1333,15 +1337,28 @@ def tearDown(test):
     exceptionformatter.DEBUG_EXCEPTION_FORMATTER = \
         test.orig_DEBUG_EXCEPTION_FORMATTER
 
+def noCacheTearDown(test):
+    container.USE_CONTAINER_CACHE = True
+    tearDown(test)
 
 def test_suite():
-    return doctest.DocTestSuite(
-        setUp=setUp, tearDown=tearDown, checker=checker,
-        optionflags=(doctest.NORMALIZE_WHITESPACE|
-                     doctest.ELLIPSIS|
-                     doctest.REPORT_ONLY_FIRST_FAILURE
-                     #|doctest.REPORT_NDIFF
-                     )
-        )
+    return unittest.TestSuite((
+        doctest.DocTestSuite(
+                setUp=setUp, tearDown=tearDown, checker=checker,
+                optionflags=(doctest.NORMALIZE_WHITESPACE|
+                             doctest.ELLIPSIS|
+                             doctest.REPORT_ONLY_FIRST_FAILURE
+                             #|doctest.REPORT_NDIFF
+                             )
+                ),
+        doctest.DocTestSuite(
+                setUp=noCacheSetUp, tearDown=noCacheTearDown, checker=checker,
+                optionflags=(doctest.NORMALIZE_WHITESPACE|
+                             doctest.ELLIPSIS|
+                             doctest.REPORT_ONLY_FIRST_FAILURE
+                             #|doctest.REPORT_NDIFF
+                             )
+                ),
+        ))
 
 atexit.register(dropDB)

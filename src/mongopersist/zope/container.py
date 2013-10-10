@@ -14,6 +14,7 @@
 """Mongo Persistence Zope Containers"""
 import UserDict
 import persistent
+import transaction
 import bson.dbref
 import bson.objectid
 import zope.component
@@ -25,6 +26,7 @@ from zope.container.interfaces import IContainer
 from mongopersist import interfaces
 from mongopersist.zope import interfaces as zinterfaces
 
+USE_CONTAINER_CACHE = True
 
 class MongoContained(contained.Contained):
 
@@ -120,6 +122,38 @@ class SimpleMongoContainer(sample.SampleContainer, persistent.Persistent):
         self._p_changed = True
 
 
+class MongoContainerCacheDataManager(object):
+
+    def __init__(self, tm, container):
+        self.transaction_manager = tm
+        self.container = container
+
+    def _purge(self):
+        self.container._v_cache = {}
+        self.container._v_cache_complete = False
+
+    def abort(self, transaction):
+        self._purge()
+
+    def commit(self, transaction):
+        self._purge()
+
+    def tpc_begin(self, transaction):
+        pass
+
+    def tpc_vote(self, transaction):
+        pass
+
+    def tpc_finish(self, transaction):
+        self._purge()
+
+    def tpc_abort(self, transaction):
+        pass
+
+    def sortKey(self):
+        return 'MongoContainerCache'
+
+
 class MongoContainer(contained.Contained,
                      persistent.Persistent,
                      UserDict.DictMixin):
@@ -184,6 +218,33 @@ class MongoContainer(contained.Contained,
             if key not in filter:
                 filter[key] = value
 
+    @property
+    def _cache(self):
+        if not USE_CONTAINER_CACHE:
+            return {}
+        txn = transaction.manager.get()
+        if not hasattr(txn, '_v_mongo_container_cache'):
+            txn._v_mongo_container_cache = {}
+        return txn._v_mongo_container_cache.setdefault(self, {})
+
+    @property
+    def _cache_complete(self):
+        if not USE_CONTAINER_CACHE:
+            return False
+        txn = transaction.manager.get()
+        if not hasattr(txn, '_v_mongo_container_cache_complete'):
+            txn._v_mongo_container_cache_complete = {}
+        return txn._v_mongo_container_cache_complete.get(self, False)
+
+    def _cache_mark_complete(self):
+        txn = transaction.manager.get()
+        if not hasattr(txn, '_v_mongo_container_cache_complete'):
+            txn._v_mongo_container_cache_complete = {}
+        txn._v_mongo_container_cache_complete[self] = True
+
+    def _cache_get_key(self, doc):
+        return doc[self._m_mapping_key]
+
     def _locate(self, obj, doc):
         # Helper method that is only used when locating items that are already
         # in the container and are simply loaded from Mongo.
@@ -193,6 +254,9 @@ class MongoContainer(contained.Contained,
             obj._v_parent = self
 
     def _load_one(self, doc):
+        obj = self._cache.get(self._cache_get_key(doc))
+        if obj is not None:
+            return obj
         # Create a DBRef object and then load the full state of the object.
         dbref = bson.dbref.DBRef(
             self._m_collection, doc['_id'],
@@ -201,6 +265,8 @@ class MongoContainer(contained.Contained,
         self._m_jar._latest_states[dbref] = doc
         obj = self._m_jar.load(dbref)
         self._locate(obj, doc)
+        # Add the object into the local container cache.
+        self._cache[obj.__name__] = obj
         return obj
 
     def __cmp__(self, other):
@@ -210,6 +276,13 @@ class MongoContainer(contained.Contained,
         return cmp(id(self), id(other))
 
     def __getitem__(self, key):
+        # First check the container cache for the object.
+        obj = self._cache.get(key)
+        if obj is not None:
+            return obj
+        if self._cache_complete:
+            raise KeyError(key)
+        # The cache cannot help, so the item is looked up in the database.
         filter = self._m_get_items_filter()
         filter[self._m_mapping_key] = key
         obj = self.find_one(filter)
@@ -243,6 +316,8 @@ class MongoContainer(contained.Contained,
                 key = getattr(value, self._m_mapping_key)
         # We want to be as close as possible to using the Zope semantics.
         contained.setitem(self, self._real_setitem, key, value)
+        # Also add the item to the container cache.
+        self._cache[key] = value
 
     def add(self, value, key=None):
         # We are already supporting ``None`` valued keys, which prompts the key
@@ -268,27 +343,40 @@ class MongoContainer(contained.Contained,
         # Let's now remove the object from the database.
         if self._m_remove_documents:
             self._m_jar.remove(value)
+        # Remove the object from the container cache.
+        if USE_CONTAINER_CACHE:
+            del self._cache[key]
         # Send the uncontained event.
         contained.uncontained(value, self, key)
 
     def __contains__(self, key):
+        if self._cache_complete:
+            return key in self._cache
         return self.raw_find_one(
             {self._m_mapping_key: key}, fields=()) is not None
 
     def __iter__(self):
+        # If the cache contains all objects, we can just return the cache keys.
+        if self._cache_complete:
+            return iter(self._cache)
         result = self.raw_find(
             {self._m_mapping_key: {'$ne': None}}, fields=(self._m_mapping_key,))
-        for doc in result:
-            yield doc[self._m_mapping_key]
+        return iter(doc[self._m_mapping_key] for doc in result)
 
     def keys(self):
         return list(self.__iter__())
 
     def iteritems(self):
+        # If the cache contains all objects, we can just return the cache keys.
+        if self._cache_complete:
+            return self._cache.iteritems()
         result = self.raw_find()
-        for doc in result:
-            obj = self._load_one(doc)
-            yield doc[self._m_mapping_key], obj
+        items = [(doc[self._m_mapping_key], self._load_one(doc))
+                 for doc in result]
+        # Signal the container that the cache is now complete.
+        self._cache_mark_complete()
+        # Return an iterator of the items.
+        return iter(items)
 
     def raw_find(self, spec=None, *args, **kwargs):
         if spec is None:
@@ -327,17 +415,28 @@ class IdNamesMongoContainer(MongoContainer):
     def __init__(self, collection=None, database=None, parent_key=None):
         super(IdNamesMongoContainer, self).__init__(collection, database, parent_key)
 
+
     @property
     def _m_remove_documents(self):
         # Objects must be removed, since removing the _id of a document is not
         # allowed.
         return True
 
+    def _cache_get_key(self, doc):
+        return unicode(doc['_id'])
+
     def _locate(self, obj, doc):
         obj._v_name = unicode(doc['_id'])
         obj._v_parent = self
 
     def __getitem__(self, key):
+        # First check the container cache for the object.
+        obj = self._cache.get(key)
+        if obj is not None:
+            return obj
+        if self._cache_complete:
+            raise KeyError(key)
+        # We do not have a cache entry, so we look up the object.
         try:
             id = bson.objectid.ObjectId(key)
         except InvalidId:
@@ -350,6 +449,10 @@ class IdNamesMongoContainer(MongoContainer):
         return obj
 
     def __contains__(self, key):
+        # If all objects are loaded, we can look in the local object cache.
+        if self._cache_complete:
+            return key in self._cache
+        # Look in Mongo.
         try:
             id = bson.objectid.ObjectId(key)
         except InvalidId:
@@ -357,15 +460,25 @@ class IdNamesMongoContainer(MongoContainer):
         return self.raw_find_one({'_id': id}, fields=()) is not None
 
     def __iter__(self):
+        # If the cache contains all objects, we can just return the cache keys.
+        if self._cache_complete:
+            return iter(self._cache)
+        # Look up all ids in Mongo.
         result = self.raw_find(fields=None)
-        for doc in result:
-            yield unicode(doc['_id'])
+        return iter(unicode(doc['_id']) for doc in result)
 
     def iteritems(self):
+        # If the cache contains all objects, we can just return the cache keys.
+        if self._cache_complete:
+            return self._cache.iteritems()
+        # Load all objects from the database.
         result = self.raw_find()
-        for doc in result:
-            obj = self._load_one(doc)
-            yield unicode(doc['_id']), obj
+        items = [(unicode(doc['_id']), self._load_one(doc))
+                 for doc in result]
+        # Signal the container that the cache is now complete.
+        self._cache_mark_complete()
+        # Return an iterator of the items.
+        return iter(items)
 
 
 class AllItemsMongoContainer(MongoContainer):
