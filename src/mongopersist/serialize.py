@@ -141,7 +141,9 @@ class ObjectWriter(object):
         if id(obj) in seen:
             raise interfaces.CircularReferenceError(obj)
         # Add the current object to the list of seen objects.
-        seen.append(id(obj))
+        if not (isinstance(obj, interfaces.REFERENCE_SAFE_TYPES) or
+                getattr(obj, '_m_reference_safe', False)):
+            seen.append(id(obj))
         # Get the state of the object. Only pickable objects can be reduced.
         reduced = obj.__reduce__()
         # The full object state (item 3) seems to be optional, so let's make
@@ -380,6 +382,9 @@ class ObjectReader(object):
                 obj_doc = self._jar\
                     .get_collection(dbref.database, dbref.collection)\
                     .find_one(dbref.id, fields=('_py_persistent_type',))
+            #if obj_doc is None:
+            #    # There is no document for this reference in the database.
+            #    raise ImportError(dbref)
             if '_py_persistent_type' in obj_doc:
                 klass = self.simple_resolve(obj_doc['_py_persistent_type'])
                 OID_CLASS_LRU.put(hash(dbref), klass)

@@ -13,6 +13,13 @@ CHANGES
 - Feature: Added serializer for ``datetime.time``, since the loaded reduced
   state is not usable (due to string to unicode conversion).
 
+- Feature: Added ability for types not to paricipate in circular reference
+  detection. Mongo-native types already did not participate, but now other
+  non-persistent types can declarare themselves as "reference-safe" using the
+  `_m_reference_safe` flag. This is particularly useful for objects serialize
+  into a set of trivial values that cannot have complex references. (You
+  should rarely need this feature.)
+
 - Bug: Fix circular reference detection of non-persistent object that were
   different instances but equated.
 

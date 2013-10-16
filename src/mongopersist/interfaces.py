@@ -24,6 +24,8 @@ from bson import objectid, dbref
 MONGO_NATIVE_TYPES = (
     int, float, unicode, datetime.datetime, types.NoneType,
     objectid.ObjectId, dbref.DBRef)
+REFERENCE_SAFE_TYPES = (
+    datetime.date, datetime.time)
 
 
 class ConflictError(transaction.interfaces.TransientError):

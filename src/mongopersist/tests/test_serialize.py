@@ -217,6 +217,38 @@ def doctest_ObjectWriter_get_non_persistent_state_circluar_references():
        {'x': 1, '_py_type': '__main__.Compare'}
        >>> seen == [id(c1), id(c2)]
        True
+
+    2. Objects that are declared safe of circular references are not added to
+       the list of seen objects. These are usually objects that are comprised
+       of other simple types, so that they do not contain other complex
+       objects in their serialization output.
+
+       A default example is ``datetime.date``, which is not a Mongo-native
+       type, but only references simple integers and serializes into a binary
+       string.
+
+         >>> import datetime
+         >>> d = datetime.date(2013, 10, 16)
+         >>> seen = []
+         >>> writer.get_non_persistent_state(d, seen)
+         {'_py_factory': 'datetime.date',
+          '_py_factory_args': [Binary('\x07\xdd\n\x10', 0)]}
+         >>> seen
+         []
+
+       Types can also declare themselves as reference safe:
+
+         >>> class Ref(object):
+         ...   _m_reference_safe = True
+         ...   def __init__(self, x):
+         ...       self.x = x
+
+         >>> one = Ref(1)
+         >>> seen = []
+         >>> writer.get_non_persistent_state(one, seen)
+         {'x': 1, '_py_type': '__main__.Ref'}
+         >>> seen
+         []
     """
 
 def doctest_ObjectWriter_get_persistent_state():
