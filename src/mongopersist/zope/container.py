@@ -122,38 +122,6 @@ class SimpleMongoContainer(sample.SampleContainer, persistent.Persistent):
         self._p_changed = True
 
 
-class MongoContainerCacheDataManager(object):
-
-    def __init__(self, tm, container):
-        self.transaction_manager = tm
-        self.container = container
-
-    def _purge(self):
-        self.container._v_cache = {}
-        self.container._v_cache_complete = False
-
-    def abort(self, transaction):
-        self._purge()
-
-    def commit(self, transaction):
-        self._purge()
-
-    def tpc_begin(self, transaction):
-        pass
-
-    def tpc_vote(self, transaction):
-        pass
-
-    def tpc_finish(self, transaction):
-        self._purge()
-
-    def tpc_abort(self, transaction):
-        pass
-
-    def sortKey(self):
-        return 'MongoContainerCache'
-
-
 class MongoContainer(contained.Contained,
                      persistent.Persistent,
                      UserDict.DictMixin):
