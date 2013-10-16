@@ -121,7 +121,13 @@ class SerialConflictHandler(object):
 
     def has_conflicts(self, objs):
         for obj in objs:
-            if self.check_conflict(obj) is not None:
+            try:
+                if self.check_conflict(obj) is not None:
+                    return True
+            except interfaces.ConflictError, err:
+                # In some cases even trying to resolve the conflict causes a
+                # conflict error, so we need to catch the error here to avoid
+                # infinite recursion.
                 return True
         return False
 
