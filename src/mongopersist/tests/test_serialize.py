@@ -183,10 +183,40 @@ def doctest_ObjectWriter_get_non_persistent_state():
 
     Circular object references cause an error:
 
-      >>> writer.get_non_persistent_state(this, [this])
+      >>> writer.get_non_persistent_state(this, [id(this)])
       Traceback (most recent call last):
       ...
       CircularReferenceError: <__main__.This object at 0x3051550>
+    """
+
+def doctest_ObjectWriter_get_non_persistent_state_circluar_references():
+    r"""ObjectWriter: get_non_persistent_state(): Circular References
+
+    This test checks that circular references are not incorrectly detected.
+
+      >>> writer = serialize.ObjectWriter(dm)
+
+    1. Make sure that only the same *instance* is recognized as circular
+       reference.
+
+       >>> class Compare(object):
+       ...   def __init__(self, x):
+       ...       self.x = x
+       ...   def __eq__(self, other):
+       ...       return self.x == other.x
+
+       >>> seen = []
+       >>> c1 = Compare(1)
+       >>> writer.get_non_persistent_state(c1, seen)
+       {'x': 1, '_py_type': '__main__.Compare'}
+       >>> seen == [id(c1)]
+       True
+
+       >>> c2 = Compare(1)
+       >>> writer.get_non_persistent_state(c2, seen)
+       {'x': 1, '_py_type': '__main__.Compare'}
+       >>> seen == [id(c1), id(c2)]
+       True
     """
 
 def doctest_ObjectWriter_get_persistent_state():

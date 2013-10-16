@@ -13,6 +13,9 @@ CHANGES
 - Feature: Added serializer for ``datetime.time``, since the loaded reduced
   state is not usable (due to string to unicode conversion).
 
+- Bug: Fix circular reference detection of non-persistent object that were
+  different instances but equated.
+
 - Bug: Fixed a bug where shared collection among derived classes would not
   work consistently.
 

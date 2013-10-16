@@ -138,10 +138,10 @@ class ObjectWriter(object):
 
         # Only non-persistent, custom objects can produce unresolvable
         # circular references.
-        if obj in seen:
+        if id(obj) in seen:
             raise interfaces.CircularReferenceError(obj)
         # Add the current object to the list of seen objects.
-        seen.append(obj)
+        seen.append(id(obj))
         # Get the state of the object. Only pickable objects can be reduced.
         reduced = obj.__reduce__()
         # The full object state (item 3) seems to be optional, so let's make
