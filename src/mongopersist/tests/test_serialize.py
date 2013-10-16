@@ -305,6 +305,37 @@ def doctest_ObjectWriter_get_state_Persistent():
       {'_py_persistent_type': 'mongopersist.tests.test_serialize.Top'}
     """
 
+def doctest_ObjectWriter_get_state_sub_doc_object_with_no_pobj():
+    """ObjectWriter: get_state(): Called with a sub-document object and no pobj
+
+    While this should not really happen, we want to make sure we are properly
+    protected against it. Usually, the writer sets the jar of the parent
+    object equal to its jar. But it cannot do so, if `pobj` or `pobj._p_jar`
+    is `None`.
+
+      >>> writer = serialize.ObjectWriter(dm)
+
+      >>> t2 = Tier2()
+      >>> writer.get_state(t2)
+      {'_py_persistent_type': 'mongopersist.tests.test_serialize.Tier2'}
+
+      >>> t2._p_jar is None
+      True
+      >>> t2._p_mongo_doc_object is None
+      True
+
+    Let's now pass in a `pobj` without a jar:
+
+      >>> top = Top()
+      >>> writer.get_state(t2, top)
+      {'_py_persistent_type': 'mongopersist.tests.test_serialize.Tier2'}
+
+      >>> t2._p_jar is None
+      True
+      >>> t2._p_mongo_doc_object is top
+      True
+    """
+
 def doctest_ObjectWriter_get_full_state():
     """ObjectWriter: get_full_state()
 
