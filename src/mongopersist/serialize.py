@@ -132,7 +132,7 @@ class ObjectWriter(object):
         return db_name, coll_name
 
     def get_non_persistent_state(self, obj, seen):
-        __traceback_info__ = obj
+        __traceback_info__ = obj, type(obj)
         # XXX: Look at the pickle library how to properly handle all types and
         # old-style classes with all of the possible pickle extensions.
 
