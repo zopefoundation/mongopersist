@@ -60,6 +60,9 @@ class ConflictError(transaction.interfaces.TransientError):
             'new serial %s' % self.new_serial]
         return "%s (%s)" % (self.message, ", ".join(extras))
 
+    def __unicode__(self):
+        return unicode(self.__str__())
+
     def __repr__(self):
         return '%s: %s' % (self.__class__.__name__, self)
 
