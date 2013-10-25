@@ -36,7 +36,7 @@ class MongoConnectionPool(object):
     _mongoConnectionFactory = pymongo.MongoClient
 
     def __init__(self, host='localhost', port=27017, logLevel=20,
-                 tz_aware=True, w=1, j=True, connectionFactory=None):
+                 tz_aware=True, w=3, j=True, connectionFactory=None):
         self.host = host
         self.port = port
         self.key = 'mongopersist-%s-%s' %(self.host, self.port)

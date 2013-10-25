@@ -20,6 +20,10 @@ CHANGES
   into a set of trivial values that cannot have complex references. (You
   should rarely need this feature.)
 
+- Feature: The connection pool client connections now block writes until at
+  least 2 replications have been successfully been reported (w=3). It used to
+  be set to w=1, which blocks until master confirms the write.
+
 - Bug: Make absolutely sure that ``ConflictError`` cannot be raised during
   abort when using the ``SerialConflictHandler`` conflict handlers.
 
