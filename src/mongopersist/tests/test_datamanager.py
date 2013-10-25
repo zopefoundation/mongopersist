@@ -552,6 +552,76 @@ def doctest_MongoDataManager_insert_remove():
 
     """
 
+def doctest_MongoDataManager_remove_modify_flush():
+    r"""MongoDataManager: An object is modified after removal.
+
+    Let's insert an object:
+
+      >>> foo = Foo('foo')
+      >>> foo_ref = dm.insert(foo)
+      >>> dm.reset()
+
+    Let's now remove it:
+
+      >>> dm.remove(foo)
+      >>> dm._removed_objects
+      [<Foo foo>]
+
+    Within the same transaction we modify the object. But the object should
+    not appear in the registered objects list.
+
+      >>> foo._p_changed = True
+      >>> dm._registered_objects
+      []
+
+    Now, because of other lookups, the changes are flushed, which should not
+    restore the object.
+
+      >>> dm._flush_objects()
+      >>> tuple(dm._get_collection_from_object(foo).find())
+      ()
+
+      >>> dm.reset()
+
+    """
+
+def doctest_MongoDataManager_remove_flush_modify():
+    r"""MongoDataManager: An object is removed, DM flushed, object modified
+
+    Let's insert an object:
+
+      >>> foo = Foo('foo')
+      >>> foo_ref = dm.insert(foo)
+      >>> dm.reset()
+
+    Let's now remove it:
+
+      >>> foo._p_changed = True
+      >>> dm.remove(foo)
+      >>> dm._removed_objects
+      [<Foo foo>]
+
+    Now, because of other lookups, the changes are flushed, which should not
+    restore the object.
+
+      >>> dm._flush_objects()
+      >>> tuple(dm._get_collection_from_object(foo).find())
+      ()
+
+    Within the same transaction we modify the object. But the object should
+    not appear in the registered objects list.
+
+      >>> foo._p_changed = True
+      >>> dm._registered_objects
+      []
+
+      >>> tuple(dm._get_collection_from_object(foo).find())
+      ()
+
+      >>> dm.reset()
+
+    """
+
 
 def doctest_MongoDataManager_setstate():
     r"""MongoDataManager: setstate()

@@ -340,6 +340,10 @@ class MongoDataManager(object):
             self.transaction_manager.get().join(self)
             self._needs_to_join = False
 
+        # Do not bring back removed objects.
+        if obj in self._removed_objects:
+            return
+
         if obj is not None:
             if obj not in self._registered_objects:
                 self._registered_objects.append(obj)

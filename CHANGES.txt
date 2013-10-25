@@ -24,6 +24,10 @@ CHANGES
   least 2 replications have been successfully been reported (w=3). It used to
   be set to w=1, which blocks until master confirms the write.
 
+- Bug: Removed objects could return, if they were modified after
+  removal. Removed objects are now explicitely ignored when registering
+  modified objects.
+
 - Bug: Make absolutely sure that ``ConflictError`` cannot be raised during
   abort when using the ``SerialConflictHandler`` conflict handlers.
 
