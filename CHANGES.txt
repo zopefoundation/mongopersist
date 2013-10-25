@@ -24,6 +24,9 @@ CHANGES
   least 2 replications have been successfully been reported (w=3). It used to
   be set to w=1, which blocks until master confirms the write.
 
+- Bug: ``__reduce__()`` may return ``None`` as object state. By handling this
+  case porperly, sets can now be serialized.
+
 - Bug: Removed objects could return, if they were modified after
   removal. Removed objects are now explicitely ignored when registering
   modified objects.

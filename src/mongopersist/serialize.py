@@ -149,10 +149,12 @@ class ObjectWriter(object):
         # The full object state (item 3) seems to be optional, so let's make
         # sure we handle that case gracefully.
         if len(reduced) == 2:
-            factory, args = obj.__reduce__()
+            factory, args = reduced
             obj_state = {}
         else:
             factory, args, obj_state = reduced
+            if obj_state is None:
+                obj_state = {}
         # We are trying very hard to create a clean Mongo (sub-)document. But
         # we need a little bit of meta-data to help us out later.
         if factory == copy_reg._reconstructor and \
