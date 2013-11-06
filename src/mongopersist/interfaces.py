@@ -14,6 +14,7 @@
 """Mongo Persistence Interfaces"""
 from __future__ import absolute_import
 import datetime
+import decimal
 import persistent.interfaces
 import transaction.interfaces
 import types
@@ -25,7 +26,7 @@ MONGO_NATIVE_TYPES = (
     int, float, unicode, datetime.datetime, types.NoneType,
     objectid.ObjectId, dbref.DBRef)
 REFERENCE_SAFE_TYPES = (
-    datetime.date, datetime.time)
+    datetime.date, datetime.time, decimal.Decimal)
 
 
 class ConflictError(transaction.interfaces.TransientError):
