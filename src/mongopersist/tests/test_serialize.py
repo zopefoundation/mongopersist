@@ -38,6 +38,10 @@ class Tier2(persistent.Persistent):
 class Foo(persistent.Persistent):
     _p_mongo_collection = 'Foo'
 
+class Bar(persistent.Persistent):
+    _p_mongo_database = 'foo'
+    _p_mongo_collection = 'Bar'
+
 class Anything(persistent.Persistent):
     pass
 
@@ -138,6 +142,15 @@ def doctest_ObjectWriter_get_collection_name():
 
       >>> getattr(top2, '_p_mongo_store_type', None)
       True
+
+    Since the serializer also supports serializing any object without the
+    intend of storing it in MongoDB, we have to be abel to look up the
+    collection name of a persistent object without a jar being around.
+
+      >>> writer = serialize.ObjectWriter(None)
+      >>> writer.get_collection_name(Bar())
+      ('foo', 'Bar')
+
     """
 
 def doctest_ObjectWriter_get_non_persistent_state():

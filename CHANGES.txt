@@ -24,6 +24,10 @@ CHANGES
   least 2 replications have been successfully been reported (w=3). It used to
   be set to w=1, which blocks until master confirms the write.
 
+- Bug: ObjectWriter ``get_collection_name()`` now works properly if the object
+  writer has no jar. This is the case when we simply want to serialize any
+  object to JSON, but one of the objects is a proper MongoDB persisted object.
+
 - Bug: ``__reduce__()`` may return ``None`` as object state. By handling this
   case porperly, sets can now be serialized.
 

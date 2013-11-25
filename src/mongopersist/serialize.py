@@ -102,6 +102,10 @@ class ObjectWriter(object):
             coll_name = obj._p_mongo_collection
         except AttributeError:
             return db_name, get_dotted_name(obj.__class__)
+        # If the object writer is run without a datamager, there is no need to
+        # try to dump the collection info into the database.
+        if self._jar is None:
+            return db_name, coll_name
         # Make sure that the coll_name to class path mapping is available.
         # Let's make sure we do the lookup only once, since the info will
         # never change.
