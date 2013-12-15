@@ -5,6 +5,9 @@ CHANGES
 0.9.0 (unreleased)
 ------------------
 
+- Feature: Support serialization of objects that return a single string from
+  ``__reduce__()``.
+
 - Feature: Added a container-level cache to the ``MongoContainer``
   object. This cache is only used within the transaction, but it reduced calls
   to Mongo by 40% in a real world use. The cache can be turned off by setting
@@ -47,7 +50,6 @@ CHANGES
 - Bug: Fixed a bug during initialization of persistent sub-objects in that
   changes would not be seen in the transaction once the datamanger was
   flushed.
-
 
 
 0.8.4 (2013-06-13)

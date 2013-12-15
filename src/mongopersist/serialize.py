@@ -152,6 +152,10 @@ class ObjectWriter(object):
         reduced = obj.__reduce__()
         # The full object state (item 3) seems to be optional, so let's make
         # sure we handle that case gracefully.
+        if isinstance(reduced, str):
+            # When the reduced state is just a string it represents a name in
+            # a module. The module will be extrated from __module__.
+            return {'_py_constant': obj.__module__+'.'+reduced[0]}
         if len(reduced) == 2:
             factory, args = reduced
             obj_state = {}
@@ -462,6 +466,8 @@ class ObjectReader(object):
             return klass
 
     def get_non_persistent_object(self, state, obj):
+        if '_py_constant' in state:
+            return self.simple_resolve(state.pop('_py_constant'))
         if '_py_type' in state:
             # Handle the simplified case.
             klass = self.simple_resolve(state.pop('_py_type'))
