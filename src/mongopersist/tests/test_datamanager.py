@@ -338,6 +338,23 @@ def doctest_MongoDataManager_dump_only_on_real_change_no_py_serial():
 
     """
 
+
+def doctest_MOngoDataManager_insertWithExplicitId():
+    """
+    Objects can be inserted by specifying new object id explicitly.
+
+      >>> foo = Foo('foo')
+      >>> foo_ref = dm.insert(foo, "foo")
+      >>> dm.tpc_finish(None)
+
+    Now, Foo object should be have the provided id
+
+      >>> foo._p_oid.id
+      'foo'
+
+  """
+
+
 def doctest_MongoDataManager_flush():
     r"""MongoDataManager: flush()
 

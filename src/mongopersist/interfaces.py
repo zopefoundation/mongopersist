@@ -162,8 +162,11 @@ class IObjectWriter(zope.interface.Interface):
         detected.
         """
 
-    def store(obj):
-        """Store an object in the database."""
+    def store(obj, id=None):
+        """Store an object in the database with given id
+
+        If id is not specified, unique one will be generated
+        """
 
 
 class IObjectReader(zope.interface.Interface):
@@ -222,10 +225,13 @@ class IMongoDataManager(persistent.interfaces.IPersistentDataManager):
     def flush():
         """Flush all changes to Mongo."""
 
-    def insert(obj):
+    def insert(obj, id=None):
         """Insert an object into Mongo.
 
         The correct collection is determined by object type.
+
+        If `id` is provided, object will be inserted under that id. Otherwise,
+        new unique id will be generated.
         """
 
     def remove(obj):

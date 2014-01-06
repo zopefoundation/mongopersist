@@ -1261,8 +1261,11 @@ def doctest_firing_events_IdNamesMongoContainer():
       >>> list(people.keys())
       [u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000']
 
+    We can set custom keys as well, they will end up in mongo documents as _id
+    attributes.
+
       >>> for idx in xrange(2):
-      ...     name = 'Mr Number %.5i' % (idx+20, )
+      ...     name = '4e7ddf12e1382374030%.5i' % (idx+20, )
       ...     people[name] = PeoplePerson(name, random.randint(0, 100))
       <zope.lifecycleevent.ObjectAddedEvent object at ...>
       <zope.container.contained.ContainerModifiedEvent object at ...>
@@ -1270,7 +1273,9 @@ def doctest_firing_events_IdNamesMongoContainer():
       <zope.container.contained.ContainerModifiedEvent object at ...>
       >>> transaction.commit()
       >>> list(people.keys())
-      [u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000']
+      [u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000',
+      u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000',
+      u'4e7ddf12e138237403000000', u'4e7ddf12e138237403000000']
 
     """
 

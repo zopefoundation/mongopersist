@@ -282,7 +282,7 @@ class ObjectWriter(object):
         # Return the full state document
         return doc
 
-    def store(self, obj, ref_only=False):
+    def store(self, obj, ref_only=False, id=None):
         __traceback_info__ = (obj, ref_only)
 
         db_name, coll_name = self.get_collection_name(obj)
@@ -308,6 +308,8 @@ class ObjectWriter(object):
 
         stored = False
         if obj._p_oid is None:
+            if id is not None:
+                doc['_id'] = id
             doc_id = coll.insert(doc)
             stored = True
             obj._p_jar = self._jar

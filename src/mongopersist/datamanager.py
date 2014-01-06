@@ -281,10 +281,10 @@ class MongoDataManager(object):
             obj._p_changed = False
         self._registered_objects = []
 
-    def insert(self, obj):
+    def insert(self, obj, id=None):
         if obj._p_oid is not None:
             raise ValueError('Object has already an OID.', obj)
-        res = self._writer.store(obj)
+        res = self._writer.store(obj, id=id)
         obj._p_changed = False
         self._object_cache[obj._p_oid] = obj
         self._inserted_objects.append(obj)
