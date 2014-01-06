@@ -448,6 +448,14 @@ class IdNamesMongoContainer(MongoContainer):
         # Return an iterator of the items.
         return iter(items)
 
+    def _real_setitem(self, key, value):
+        # We want mongo document ids to be our keys, so pass it to insert(), if
+        # key is provided
+        if value._p_oid is None:
+            self._m_jar.insert(value, id=bson.objectid.ObjectId(key))
+
+        super(IdNamesMongoContainer, self)._real_setitem(key, value)
+
 
 class AllItemsMongoContainer(MongoContainer):
     _m_parent_key = None
