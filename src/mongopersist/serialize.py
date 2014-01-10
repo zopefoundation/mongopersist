@@ -552,6 +552,9 @@ class ObjectReader(object):
 
     def set_ghost_state(self, obj, doc=None):
         __traceback_info__ = (obj, doc)
+        # Check whether the object state was stored on the object itself.
+        if doc is None:
+            doc = getattr(obj, '_p_mongo_state', None)
         # Look up the object state by coll_name and oid.
         if doc is None:
             coll = self._jar.get_collection(
