@@ -9,6 +9,10 @@ CHANGES
   ``_p_mongo_state`` attribute. This allows some parent object to control
   serialization with lazy loading (most useful for sub-document objects).
 
+- Feature: Allow to store objects using an explicit obejct id, instead of
+  letting MongoDB generate one for us. The``IdNamesMongoContainer`` class has
+  been updated to allow not ignore the key while setting items.
+
 - Feature: Support serialization of objects that return a single string from
   ``__reduce__()``.
 
