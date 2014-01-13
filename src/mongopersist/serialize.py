@@ -155,7 +155,7 @@ class ObjectWriter(object):
         if isinstance(reduced, str):
             # When the reduced state is just a string it represents a name in
             # a module. The module will be extrated from __module__.
-            return {'_py_constant': obj.__module__+'.'+reduced[0]}
+            return {'_py_constant': obj.__module__+'.'+reduced}
         if len(reduced) == 2:
             factory, args = reduced
             obj_state = {}
