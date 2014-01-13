@@ -347,8 +347,16 @@ class MongoDataManager(object):
         if obj is not None:
             if obj not in self._registered_objects:
                 self._registered_objects.append(obj)
-            if obj not in self._modified_objects:
-                self._modified_objects.append(obj)
+            try:
+                if obj not in self._modified_objects:
+                    self._modified_objects.append(obj)
+            except:
+                # We have cases where the operator fails because dictionary
+                # values mismatch, i.e. a str cannot be converted to unicde.
+                # So we work with the id instead.
+                if id(obj) not in [id(mobj) for mobj in self._modified_objects]:
+                    self._modified_objects.append(obj)
+
             self.conflict_handler.on_modified(obj)
 
     def abort(self, transaction):
