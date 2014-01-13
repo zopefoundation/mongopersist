@@ -19,7 +19,7 @@ import pprint
 
 from bson import binary, dbref, objectid
 
-from mongopersist import conflict, serialize, testing
+from mongopersist import conflict, interfaces, serialize, testing
 
 class Top(persistent.Persistent):
     _p_mongo_collection = 'Top'
@@ -54,6 +54,12 @@ class StoreType2(StoreType):
 
 class Simple(object):
     pass
+
+class Constant(object):
+    def __reduce__(self):
+        return 'Constant'
+Constant = Constant()
+
 
 def doctest_ObjectSerializer():
     """Test the abstract ObjectSerializer class.
@@ -312,6 +318,16 @@ def doctest_ObjectWriter_get_state_MONGO_NATIVE_TYPES():
       ObjectId('4e7ddf12e138237403000000')
       >>> writer.get_state(dbref.DBRef('4e7ddf12e138237403000000', 'test'))
       DBRef('4e7ddf12e138237403000000', 'test')
+    """
+
+def doctest_ObjectWriter_get_state_constant():
+    """ObjectWriter: get_state(): Constants
+
+      >>> writer = serialize.ObjectWriter(None)
+      >>> writer.get_state(Constant)
+      {'_py_constant': 'mongopersist.tests.test_serialize.Constant'}
+      >>> writer.get_state(interfaces.IObjectWriter)
+      {'_py_constant': 'mongopersist.interfaces.IObjectWriter'}
     """
 
 def doctest_ObjectWriter_get_state_types():
@@ -872,6 +888,19 @@ def doctest_ObjectReader_get_object_mapping():
       ...     {'dict_data': [(1, '1'), (2, '2'), (3, '3')]},
       ...     None))
       {1: '1', 2: '2', 3: '3'}
+    """
+
+def doctest_ObjectReader_get_object_constant():
+    """ObjectReader: get_object(): constant
+
+      >>> reader = serialize.ObjectReader(dm)
+      >>> reader.get_object(
+      ...     {'_py_constant': 'mongopersist.tests.test_serialize.Constant'},
+      ...     None)
+      <mongopersist.tests.test_serialize.Constant object at ...>
+      >>> reader.get_object(
+      ...     {'_py_constant': 'mongopersist.interfaces.IObjectWriter'}, None)
+      <InterfaceClass mongopersist.interfaces.IObjectWriter>
     """
 
 def doctest_ObjectReader_get_ghost():

@@ -35,6 +35,12 @@ CHANGES
   least 2 replications have been successfully been reported (w=3). It used to
   be set to w=1, which blocks until master confirms the write.
 
+- Bug: Ensure that only basic types and not objects derived from any basic
+  type are treated as such.
+
+- Bug: It can happen that comparing similar dicts can cause decode
+  errors. This in turn caused some object updates to fail in the data manager.
+
 - Bug: ObjectWriter ``get_collection_name()`` now works properly if the object
   writer has no jar. This is the case when we simply want to serialize any
   object to JSON, but one of the objects is a proper MongoDB persisted object.
