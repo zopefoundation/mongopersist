@@ -517,6 +517,7 @@ class ObjectReader(object):
 
         if isinstance(state, dict) and (
             '_py_factory' in state
+            or '_py_constant' in state
             or '_py_type' in state
             or '_py_persistent_type' in state):
             # Load a non-persistent object.
