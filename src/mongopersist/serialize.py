@@ -199,7 +199,7 @@ class ObjectWriter(object):
 
     def get_state(self, obj, pobj=None, seen=None):
         seen = seen or []
-        if isinstance(obj, interfaces.MONGO_NATIVE_TYPES):
+        if type(obj) in interfaces.MONGO_NATIVE_TYPES:
             # If we have a native type, we'll just use it as the state.
             return obj
         if isinstance(obj, str):
