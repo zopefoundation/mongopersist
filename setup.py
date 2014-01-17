@@ -11,7 +11,7 @@ def read(*rnames):
 
 setup(
     name='mongopersist',
-    version='0.9.0.dev1',
+    version='0.9.0.dev2',
     author="Stephan Richter",
     author_email="stephan.richter@gmail.com",
     url='https://github.com/zopefoundation/mongopersist',
@@ -20,7 +20,7 @@ setup(
         read('src', 'mongopersist', 'README.txt')
         + '\n\n' +
         read('CHANGES.txt')
-        ),
+    ),
     license="ZPL 2.1",
     keywords="mongo persistent ",
     classifiers=[
@@ -40,12 +40,12 @@ setup(
             'zope.app.testing',
             'zope.testing',
             'ZODB3',
-            ),
+        ),
         zope=(
             'rwproperty',
             'zope.container',
-            ),
         ),
+    ),
     install_requires=[
         'transaction >=1.1.0',
         'repoze.lru',
@@ -62,4 +62,4 @@ setup(
     [console_scripts]
     profile = mongopersist.performance:main
     ''',
-    )
+)
