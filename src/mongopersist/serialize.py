@@ -248,6 +248,12 @@ class ObjectWriter(object):
             for key, value in obj.items():
                 data.append((key, self.get_state(value, pobj, seen)))
                 has_non_string_key |= not isinstance(key, basestring)
+                if (not isinstance(key, basestring) or '.' in key or '$' in key
+                    or '\0' in key):
+                    # "Field names cannot contain dots (i.e. .), dollar signs
+                    # (i.e. $), or null characters."
+                    #   -- http://docs.mongodb.org/manual/reference/limits/
+                    has_non_string_key = True
             if not has_non_string_key:
                 # The easy case: all keys are strings:
                 return dict(data)

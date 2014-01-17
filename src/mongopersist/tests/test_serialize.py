@@ -376,6 +376,12 @@ def doctest_ObjectWriter_get_state_mappings():
 
       >>> writer.get_state({1: 'one', 2: 'two', 3: 'three'})
       {'dict_data': [(1, 'one'), (2, 'two'), (3, 'three')]}
+
+    There's also a restriction on dict keys
+
+      >>> writer.get_state({'key.with.dots': 1, 'key$with$dollars': 2})
+      {'dict_data': [('key.with.dots', 1), ('key$with$dollars', 2)]}
+
     """
 
 def doctest_ObjectWriter_get_state_Persistent():

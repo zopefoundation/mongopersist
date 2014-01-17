@@ -65,6 +65,9 @@ CHANGES
   changes would not be seen in the transaction once the datamanger was
   flushed.
 
+- Bug: serializing a dict with all-string keys that contained invalid
+  MongoDB field name characters ('.', '$' or '\0') used to cause an error.
+
 
 0.8.4 (2013-06-13)
 ------------------
