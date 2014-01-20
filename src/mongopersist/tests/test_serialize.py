@@ -16,6 +16,7 @@ import datetime
 import doctest
 import persistent
 import pprint
+import copy_reg
 
 from bson import binary, dbref, objectid
 
@@ -59,6 +60,12 @@ class Constant(object):
     def __reduce__(self):
         return 'Constant'
 Constant = Constant()
+
+class CopyReggedConstant(object):
+    def custom_reduce_fn(self):
+        return 'CopyReggedConstant'
+copy_reg.pickle(CopyReggedConstant, CopyReggedConstant.custom_reduce_fn)
+CopyReggedConstant = CopyReggedConstant()
 
 
 def doctest_ObjectSerializer():
@@ -328,6 +335,8 @@ def doctest_ObjectWriter_get_state_constant():
       {'_py_constant': 'mongopersist.tests.test_serialize.Constant'}
       >>> writer.get_state(interfaces.IObjectWriter)
       {'_py_constant': 'mongopersist.interfaces.IObjectWriter'}
+      >>> writer.get_state(CopyReggedConstant)
+      {'_py_constant': 'mongopersist.tests.test_serialize.CopyReggedConstant'}
     """
 
 def doctest_ObjectWriter_get_state_types():

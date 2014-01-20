@@ -149,7 +149,12 @@ class ObjectWriter(object):
                 getattr(obj, '_m_reference_safe', False)):
             seen.append(id(obj))
         # Get the state of the object. Only pickable objects can be reduced.
-        reduced = obj.__reduce__()
+        reduce_fn = copy_reg.dispatch_table.get(type(obj))
+        if reduce_fn is not None:
+            reduced = reduce_fn(obj)
+        else:
+            # XXX: __reduce_ex__
+            reduced = obj.__reduce__()
         # The full object state (item 3) seems to be optional, so let's make
         # sure we handle that case gracefully.
         if isinstance(reduced, str):
