@@ -239,15 +239,24 @@ class MongoDataManager(object):
         written = []
         for obj in self._registered_objects:
             __traceback_info__ = obj
-            orig = obj
+            obj = self._get_doc_object(obj)
             if getattr(obj, '_p_mongo_sub_object', False):
-                # Make sure we write the object representing a document in a
-                # collection and not a sub-object.
                 obj = obj._p_mongo_doc_object
             if obj in written:
                 continue
             self._writer.store(obj)
             written.append(obj)
+
+    def _get_doc_object(self, obj):
+        seen = []
+        # Make sure we write the object representing a document in a
+        # collection and not a sub-object.
+        while getattr(obj, '_p_mongo_sub_object', False):
+            if obj in seen:
+                raise interfaces.CircularReferenceError(obj)
+            seen.append(obj)
+            obj = obj._p_mongo_doc_object
+        return obj
 
     def get_collection(self, db_name, coll_name):
         return CollectionWrapper(self._get_collection(db_name, coll_name), self)

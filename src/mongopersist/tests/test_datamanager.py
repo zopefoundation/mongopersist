@@ -38,11 +38,21 @@ class Super(persistent.Persistent):
     def __repr__(self):
         return '<%s %s>' %(self.__class__.__name__, self.name)
 
+
 class Sub(Super):
     pass
 
+
 class Bar(persistent.Persistent):
     _p_mongo_sub_object = True
+
+    def __init__(self, name=None):
+        super(Bar, self).__init__()
+        self.name = name
+
+    def __repr__(self):
+        return '<%s %s>' %(self.__class__.__name__, self.name)
+
 
 class FooItem(object):
     def __init__(self):
@@ -1076,6 +1086,110 @@ def doctest_MongoDataManager_sub_objects():
 
     Note: Most of the implementation of this feature is in the `getState()`
     method of the `ObjectWriter` class.
+    """
+
+
+def doctest_MongoDataManager_complex_sub_objects():
+    """MongoDataManager: Never store objects marked as _p_mongo_sub_object
+
+    Let's construct comlpex object with several levels of containment.
+    _p_mongo_doc_object will point to an object, that is subobject itself.
+
+      >>> foo = Foo('one')
+      >>> sup = Super('super')
+      >>> bar = Bar('bar')
+
+      >>> bar._p_mongo_sub_object = True
+      >>> bar._p_mongo_doc_object = sup
+      >>> sup.bar = bar
+
+      >>> sup._p_mongo_sub_object = True
+      >>> sup._p_mongo_doc_object = foo
+      >>> foo.sup = sup
+
+      >>> dm.root['one'] = foo
+      >>> dm.tpc_finish(None)
+
+      >>> sorted(conn[DBNAME].collection_names())
+      [u'mongopersist.tests.test_datamanager.Foo',
+       u'persistence_root',
+       u'system.indexes']
+
+    Now, save foo first, and then add subobjects
+      >>> foo = Foo('two')
+      >>> dm.root['two'] = foo
+      >>> dm.tpc_finish(None)
+
+      >>> sup = Super('second super')
+      >>> bar = Bar('second bar')
+
+      >>> bar._p_mongo_sub_object = True
+      >>> bar._p_mongo_doc_object = sup
+      >>> sup.bar = bar
+
+      >>> sup._p_mongo_sub_object = True
+      >>> sup._p_mongo_doc_object = foo
+      >>> foo.sup = sup
+      >>> dm.tpc_finish(None)
+
+      >>> sorted(conn[DBNAME].collection_names())
+      [u'mongopersist.tests.test_datamanager.Foo',
+       u'persistence_root',
+       u'system.indexes']
+
+      >>> dm.root['two'].sup.bar
+      <Bar second bar>
+
+      >>> from pprint import pprint
+      >>> pprint(list(conn[DBNAME]['mongopersist.tests.test_datamanager.Foo'].
+      ...     find({'name': 'one'})))
+      [{u'_id': ObjectId('...'),
+        u'name': u'one',
+        u'sup': {u'_py_persistent_type': u'mongopersist.tests.test_datamanager.Super',
+                 u'bar': {u'_py_persistent_type': u'mongopersist.tests.test_datamanager.Bar',
+                          u'name': u'bar'},
+                 u'name': u'super'}}]
+
+    Now, make changes to the subobjects and then commit
+
+      >>> foo = dm.root['one']
+      >>> foo.sup.name = 'new super'
+      >>> foo.sup.bar.name = 'new bar'
+      >>> dm.tpc_finish(None)
+
+      >>> foo = dm.root['one']
+      >>> foo.sup
+      <Super new super>
+      >>> foo.sup._p_mongo_sub_object
+      True
+      >>> foo.sup._p_mongo_doc_object
+      <Foo one>
+
+      >>> foo.sup.bar
+      <Bar new bar>
+
+      >>> foo.sup.bar._p_mongo_sub_object
+      True
+      >>> foo.sup.bar._p_mongo_doc_object
+      <Foo one>
+
+      >>> sorted(conn[DBNAME].collection_names())
+      [u'mongopersist.tests.test_datamanager.Foo',
+       u'persistence_root',
+       u'system.indexes']
+
+    Even if _p_mongo_doc_object is pointed to subobject, subobject does not get
+    saved to its own collection:
+
+      >>> foo.sup.bar._p_mongo_doc_object = foo.sup
+      >>> foo.sup.bar.name = 'newer bar'
+      >>> foo.sup.name = 'newer sup'
+      >>> dm.tpc_finish(None)
+
+      >>> sorted(conn[DBNAME].collection_names())
+      [u'mongopersist.tests.test_datamanager.Foo',
+       u'persistence_root',
+       u'system.indexes']
     """
 
 
