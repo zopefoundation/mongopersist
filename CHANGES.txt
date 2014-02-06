@@ -68,6 +68,9 @@ CHANGES
 - Bug: serializing a dict with all-string keys that contained invalid
   MongoDB field name characters ('.', '$' or '\0') used to cause an error.
 
+- Bug: Do not let objects, marked with _p_mongo_sub_object be stored separately
+  from main document they belong to.
+
 
 0.8.4 (2013-06-13)
 ------------------
