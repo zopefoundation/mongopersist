@@ -203,11 +203,15 @@ class MongoDataManager(object):
         self._conn = conn
         self._reader = serialize.ObjectReader(self)
         self._writer = serialize.ObjectWriter(self)
-        self._registered_objects = []
-        self._loaded_objects = []
-        self._inserted_objects = []
-        self._modified_objects = []
-        self._removed_objects = []
+        # All of the following object lists are keys by object id. This is
+        # needed when testing containment, since that can utilize `__cmp__()`
+        # which can have undesired side effects. `id()` is guaranteed to not
+        # use any method or state of the object itself.
+        self._registered_objects = {}
+        self._loaded_objects = {}
+        self._inserted_objects = {}
+        self._modified_objects = {}
+        self._removed_objects = {}
         # Keeps states as found at the beginning of the transaction.
         self._original_states = {}
         # The latest states written to the database. This is different to the
@@ -236,16 +240,21 @@ class MongoDataManager(object):
     def _flush_objects(self):
         # Now write every registered object, but make sure we write each
         # object just once.
-        written = []
-        for obj in self._registered_objects:
+        written = set()
+        # Make sure that we do not compute the list of flushable objects all
+        # at once. While writing objects, new sub-objects might be registered
+        # that also need saving.
+        todo = set(self._registered_objects.keys())
+        while todo:
+            obj_id = todo.pop()
+            obj = self._registered_objects[obj_id]
             __traceback_info__ = obj
             obj = self._get_doc_object(obj)
             if getattr(obj, '_p_mongo_sub_object', False):
                 obj = obj._p_mongo_doc_object
-            if obj in written:
-                continue
             self._writer.store(obj)
-            written.append(obj)
+            written.add(obj_id)
+            todo = set(self._registered_objects.keys()) - written
 
     def _get_doc_object(self, obj):
         seen = []
@@ -266,9 +275,9 @@ class MongoDataManager(object):
 
     def dump(self, obj):
         res = self._writer.store(obj)
-        if obj in self._registered_objects:
+        if id(obj) in self._registered_objects:
             obj._p_changed = False
-            self._registered_objects.remove(obj)
+            del self._registered_objects[id(obj)]
         return res
 
     def load(self, dbref):
@@ -281,22 +290,22 @@ class MongoDataManager(object):
 
     def flush(self):
         # Check for conflicts.
-        self.conflict_handler.check_conflicts(self._registered_objects)
+        self.conflict_handler.check_conflicts(self._registered_objects.values())
         # Now write every registered object, but make sure we write each
         # object just once.
         self._flush_objects()
         # Let's now reset all objects as if they were not modified:
-        for obj in self._registered_objects:
+        for obj in self._registered_objects.values():
             obj._p_changed = False
-        self._registered_objects = []
+        self._registered_objects = {}
 
-    def insert(self, obj, id=None):
+    def insert(self, obj, oid=None):
         if obj._p_oid is not None:
             raise ValueError('Object has already an OID.', obj)
-        res = self._writer.store(obj, id=id)
+        res = self._writer.store(obj, id=oid)
         obj._p_changed = False
         self._object_cache[obj._p_oid] = obj
-        self._inserted_objects.append(obj)
+        self._inserted_objects[id(obj)] = obj
         return res
 
     def remove(self, obj):
@@ -310,16 +319,16 @@ class MongoDataManager(object):
         coll = self.get_collection_from_object(obj)
         coll.remove({'_id': obj._p_oid.id})
         # Edge case: The object was just added in this transaction.
-        if obj in self._inserted_objects:
+        if id(obj) in self._inserted_objects:
             # but it still had to be removed from mongo, because insert
             # inserted it just before
-            self._inserted_objects.remove(obj)
+            del self._inserted_objects[id(obj)]
             return
-        self._removed_objects.append(obj)
+        self._removed_objects[id(obj)] = obj
         # Just in case the object was modified before removal, let's remove it
         # from the modification list:
         if obj._p_changed:
-            self._registered_objects.remove(obj)
+            del self._registered_objects[id(obj)]
         # We are not doing anything fancy here, since the object might be
         # added again with some different state.
 
@@ -337,7 +346,7 @@ class MongoDataManager(object):
         if doc is None:
             doc = self._latest_states.get(obj._p_oid, None)
         self._reader.set_ghost_state(obj, doc)
-        self._loaded_objects.append(obj)
+        self._loaded_objects[id(obj)] = obj
 
     def oldstate(self, obj, tid):
         # I cannot find any code using this method. Also, since we do not keep
@@ -350,37 +359,29 @@ class MongoDataManager(object):
             self._needs_to_join = False
 
         # Do not bring back removed objects.
-        if obj in self._removed_objects:
+        if id(obj) in self._removed_objects:
             return
 
         if obj is not None:
-            if obj not in self._registered_objects:
-                self._registered_objects.append(obj)
-            try:
-                if obj not in self._modified_objects:
-                    self._modified_objects.append(obj)
-            except:
-                # We have cases where the operator fails because dictionary
-                # values mismatch, i.e. a str cannot be converted to unicde.
-                # So we work with the id instead.
-                if id(obj) not in [id(mobj) for mobj in self._modified_objects]:
-                    self._modified_objects.append(obj)
-
+            if id(obj) not in self._registered_objects:
+                self._registered_objects[id(obj)] = obj
+            if id(obj) not in self._modified_objects:
+                self._modified_objects[id(obj)] = obj
             self.conflict_handler.on_modified(obj)
 
     def abort(self, transaction):
         # Aborting the transaction requires three steps:
         # 1. Remove any inserted objects.
-        for obj in self._inserted_objects:
+        for obj in self._inserted_objects.values():
             coll = self.get_collection_from_object(obj)
             coll.remove({'_id': obj._p_oid.id})
         # 2. Re-insert any removed objects.
-        for obj in self._removed_objects:
+        for obj in self._removed_objects.values():
             coll = self.get_collection_from_object(obj)
             coll.insert(self._original_states[obj._p_oid])
             del self._original_states[obj._p_oid]
         # 3. Reset any changed states.
-        for obj in self._modified_objects:
+        for obj in self._modified_objects.values():
             db_ref = obj._p_oid
             __traceback_info__ = (obj, db_ref)
             state = self._original_states.get(db_ref)
@@ -405,7 +406,7 @@ class MongoDataManager(object):
         self.reset()
 
     def commit(self, transaction):
-        self.conflict_handler.check_conflicts(self._registered_objects)
+        self.conflict_handler.check_conflicts(self._registered_objects.values())
 
     def tpc_begin(self, transaction):
         pass

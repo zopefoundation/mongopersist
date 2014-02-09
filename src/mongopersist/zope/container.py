@@ -452,7 +452,7 @@ class IdNamesMongoContainer(MongoContainer):
         # We want mongo document ids to be our keys, so pass it to insert(), if
         # key is provided
         if value._p_oid is None:
-            self._m_jar.insert(value, id=bson.objectid.ObjectId(key))
+            self._m_jar.insert(value, bson.objectid.ObjectId(key))
 
         super(IdNamesMongoContainer, self)._real_setitem(key, value)
 

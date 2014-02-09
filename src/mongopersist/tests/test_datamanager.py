@@ -215,7 +215,7 @@ def doctest_MongoDataManager_object_dump_load_reset():
       >>> foo.name = 'Foo'
       >>> foo._p_changed
       True
-      >>> dm._registered_objects
+      >>> dm._registered_objects.values()
       [<Foo Foo>]
 
       >>> foo_ref = dm.dump(foo)
@@ -223,7 +223,7 @@ def doctest_MongoDataManager_object_dump_load_reset():
       >>> foo._p_changed
       False
       >>> dm._registered_objects
-      []
+      {}
 
     Let's now reset the data manager, so we do not hit a cache while loading
     the object again:
@@ -390,7 +390,7 @@ def doctest_MongoDataManager_flush():
 
     The object is now registered with the data manager:
 
-      >>> dm._registered_objects
+      >>> dm._registered_objects.values()
       [<Foo Foo>]
       >>> foo_new._p_serial
       '\x00\x00\x00\x00\x00\x00\x00\x01'
@@ -417,7 +417,7 @@ def doctest_MongoDataManager_flush():
       flag is set to ``False``.
 
         >>> dm._registered_objects
-        []
+        {}
         >>> foo_new._p_changed
         False
 
@@ -452,7 +452,7 @@ def doctest_MongoDataManager_insert():
 
     It is also added to the list of inserted objects:
 
-      >>> dm._inserted_objects
+      >>> dm._inserted_objects.values()
       [<Foo foo>]
 
     Let's make sure it is really in Mongo:
@@ -477,7 +477,7 @@ def doctest_MongoDataManager_insert():
       >>> foo2 = Foo('Foo 2')
       >>> dm.register(foo2)
 
-      >>> dm._registered_objects
+      >>> dm._registered_objects.values()
       [<Foo Foo 2>]
 
     But storing works as expected (flush is implicit before find):
@@ -527,7 +527,7 @@ def doctest_MongoDataManager_remove():
 
     Also, the object is added to the list of removed objects:
 
-      >>> dm._removed_objects
+      >>> dm._removed_objects.values()
       [<Foo foo>]
 
     Note that you cannot remove objects that are not in the database:
@@ -548,9 +548,9 @@ def doctest_MongoDataManager_remove():
     list and never added to the removed object list.
 
       >>> dm._inserted_objects
-      []
+      {}
       >>> dm._removed_objects
-      []
+      {}
 
     """
 
@@ -568,9 +568,9 @@ def doctest_MongoDataManager_insert_remove():
       >>> dm.remove(foo)
 
       >>> dm._inserted_objects
-      []
+      {}
       >>> dm._removed_objects
-      []
+      {}
 
       >>> tuple(dm._get_collection_from_object(foo).find())
       ()
@@ -591,7 +591,7 @@ def doctest_MongoDataManager_remove_modify_flush():
     Let's now remove it:
 
       >>> dm.remove(foo)
-      >>> dm._removed_objects
+      >>> dm._removed_objects.values()
       [<Foo foo>]
 
     Within the same transaction we modify the object. But the object should
@@ -599,7 +599,7 @@ def doctest_MongoDataManager_remove_modify_flush():
 
       >>> foo._p_changed = True
       >>> dm._registered_objects
-      []
+      {}
 
     Now, because of other lookups, the changes are flushed, which should not
     restore the object.
@@ -625,7 +625,7 @@ def doctest_MongoDataManager_remove_flush_modify():
 
       >>> foo._p_changed = True
       >>> dm.remove(foo)
-      >>> dm._removed_objects
+      >>> dm._removed_objects.values()
       [<Foo foo>]
 
     Now, because of other lookups, the changes are flushed, which should not
@@ -640,7 +640,7 @@ def doctest_MongoDataManager_remove_flush_modify():
 
       >>> foo._p_changed = True
       >>> dm._registered_objects
-      []
+      {}
 
       >>> tuple(dm._get_collection_from_object(foo).find())
       ()
@@ -716,7 +716,8 @@ def doctest_MongoDataManager_abort():
 
     Aborts a transaction, which clears all object and transaction registrations:
 
-      >>> dm._registered_objects = [Foo()]
+      >>> foo = Foo()
+      >>> dm._registered_objects = {id(foo): foo}
       >>> dm._needs_to_join = False
 
       >>> dm.abort(transaction.get())
@@ -746,12 +747,12 @@ def doctest_MongoDataManager_abort():
 
       >>> foo = dm.load(foo_ref)
       >>> foo.name = '1'
-      >>> dm._registered_objects
+      >>> dm._registered_objects.values()
       [<Foo 1>]
 
       >>> foo2 = dm.load(foo2_ref)
       >>> dm.remove(foo2)
-      >>> dm._removed_objects
+      >>> dm._removed_objects.values()
       [<Foo two>]
 
       >>> foo3_ref = dm.insert(Foo('three'))
@@ -957,7 +958,7 @@ def doctest_MongoDataManager_tpc_finish():
 
       >>> foo = Foo()
       >>> dm.conflict_handler = conflict.SimpleSerialConflictHandler(dm)
-      >>> dm._registered_objects = [foo]
+      >>> dm._registered_objects = {id(foo): foo}
       >>> dm.tpc_finish(transaction.get())
       >>> foo._p_serial
       '\x00\x00\x00\x00\x00\x00\x00\x01'
@@ -965,7 +966,7 @@ def doctest_MongoDataManager_tpc_finish():
     Note that objects cannot be stored twice in the same transation:
 
       >>> dm.reset()
-      >>> dm._registered_objects = [foo, foo]
+      >>> dm._registered_objects = {id(foo): foo, id(foo): foo}
       >>> dm.tpc_finish(transaction.get())
       >>> foo._p_serial
       '\x00\x00\x00\x00\x00\x00\x00\x02'
@@ -984,7 +985,7 @@ def doctest_MongoDataManager_tpc_finish():
       >>> dm.reset()
       >>> foo3 = dm.load(foo._p_oid)
       >>> foo3.name = 'changed'
-      >>> dm._registered_objects = [foo3.bar, foo3]
+      >>> dm._registered_objects = {id(foo3.bar): foo3.bar, id(foo3): foo3}
       >>> dm.tpc_finish(transaction.get())
       >>> foo3._p_serial
       '\x00\x00\x00\x00\x00\x00\x00\x04'
@@ -993,7 +994,7 @@ def doctest_MongoDataManager_tpc_finish():
 
       >>> dm.reset()
       >>> foo4 = dm.load(foo._p_oid)
-      >>> dm._registered_objects = [foo4.bar, foo4]
+      >>> dm._registered_objects = {id(foo4.bar): foo4.bar, id(foo4): foo4}
       >>> dm.tpc_finish(transaction.get())
       >>> foo3._p_serial
       '\x00\x00\x00\x00\x00\x00\x00\x04'
@@ -1005,7 +1006,8 @@ def doctest_MongoDataManager_tpc_abort():
 
     Aborts a two-phase commit. This is simply the same as the regular abort.
 
-      >>> dm._registered_objects = [Foo()]
+      >>> foo = Foo()
+      >>> dm._registered_objects = {id(foo): foo}
       >>> dm._needs_to_join = False
 
       >>> dm.tpc_abort(transaction.get())
@@ -1246,6 +1248,45 @@ def doctest_MongoDataManager_collection_sharing():
 
       >>> dm2.root['app'].four
       <Sub four>
+    """
+
+
+def doctest_MongoDataManager_no_compare():
+    r"""MongoDataManager: No object methods are called during register/dump.
+
+    Using object comparison within the data manager canhave undesired side
+    effects. For example, `__cmp__()` could make use of other model objects
+    that cause flushes and queries in the data manager. This can have very
+    convoluted side effects, including loss of data.
+
+      >>> import UserDict
+      >>> class BadObject(persistent.Persistent):
+      ...     def __init__(self, name):
+      ...         self.name = name
+      ...     def __cmp__(self, other):
+      ...         raise ValueError('Compare used in data manager!!!')
+      ...     def __repr__(self):
+      ...         return '<BadObject %s>' % self.name
+
+      >>> dm.root['bo1'] = BadObject('bo1')
+      >>> dm.root['bo2'] = BadObject('bo2')
+
+      >>> dm.tpc_finish(None)
+
+    Since `__cmp__()` was not used, no exception was raised.
+
+      >>> bo1 = dm.root['bo1']
+      >>> bo1
+      <BadObject bo1>
+      >>> bo2 = dm.root['bo2']
+      >>> bo2
+      <BadObject bo2>
+
+      >>> dm.register(bo1)
+      >>> dm.register(bo2)
+      >>> sorted(dm._registered_objects.values(), key=lambda ob: ob.name)
+      [<BadObject bo1>, <BadObject bo2>]
+
     """
 
 

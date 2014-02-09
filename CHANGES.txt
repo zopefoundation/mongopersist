@@ -35,6 +35,12 @@ CHANGES
   least 2 replications have been successfully been reported (w=3). It used to
   be set to w=1, which blocks until master confirms the write.
 
+- Bug: Objects where compared within the transaction manager for different
+  reasons. This could create complicated scenarios (including data loss) when
+  the ``__cmp__()`` method of the object was non-trivial. Now the result of
+  the ``id(obj)`` function is used to compare objects, which is very save,
+  since the behavior of this function call cannot be changed for an object.
+
 - Bug: Ensure that only basic types and not objects derived from any basic
   type are treated as such.
 
