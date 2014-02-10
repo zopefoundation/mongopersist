@@ -259,9 +259,9 @@ class MongoDataManager(object):
         # Make sure we write the object representing a document in a
         # collection and not a sub-object.
         while getattr(obj, '_p_mongo_sub_object', False):
-            if obj in seen:
+            if id(obj) in seen:
                 raise interfaces.CircularReferenceError(obj)
-            seen.append(obj)
+            seen.append(id(obj))
             obj = obj._p_mongo_doc_object
         return obj
 
