@@ -250,8 +250,6 @@ class MongoDataManager(object):
             obj = self._registered_objects[obj_id]
             __traceback_info__ = obj
             obj = self._get_doc_object(obj)
-            if getattr(obj, '_p_mongo_sub_object', False):
-                obj = obj._p_mongo_doc_object
             self._writer.store(obj)
             written.add(obj_id)
             todo = set(self._registered_objects.keys()) - written
