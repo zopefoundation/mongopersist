@@ -1290,6 +1290,36 @@ def doctest_MongoDataManager_no_compare():
     """
 
 
+def doctest_MongoDataManager_long():
+    r"""MongoDataManager: Test behavior of long integers.
+
+      >>> dm.root['app'] = Root()
+      >>> dm.root['app'].x = 1L
+      >>> dm.tpc_finish(None)
+
+    Let's see how it is deserialzied?
+
+      >>> dm.root['app'].x
+      1L
+
+    Let's now create a really long integer:
+
+      >>> dm.root['app'].x = 2**62
+      >>> dm.tpc_finish(None)
+
+      >>> dm.root['app'].x
+      4611686018427387904L
+
+    And now an overly long one.
+
+      >>> dm.root['app'].x = 12345678901234567890L
+      >>> dm.tpc_finish(None)
+      Traceback (most recent call last):
+      ...
+      OverflowError: MongoDB can only handle up to 8-byte ints
+    """
+
+
 def doctest_process_spec():
     r"""process_spec(): General test
 

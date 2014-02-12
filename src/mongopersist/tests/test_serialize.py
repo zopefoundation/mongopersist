@@ -313,6 +313,8 @@ def doctest_ObjectWriter_get_state_MONGO_NATIVE_TYPES():
       >>> writer = serialize.ObjectWriter(None)
       >>> writer.get_state(1)
       1
+      >>> writer.get_state(1L)
+      1L
       >>> writer.get_state(1.0)
       1.0
       >>> writer.get_state(u'Test')
