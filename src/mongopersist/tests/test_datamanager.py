@@ -16,6 +16,7 @@ import doctest
 import persistent
 import transaction
 from bson import dbref, objectid
+from pprint import pprint
 
 from mongopersist import conflict, interfaces, serialize, testing, datamanager
 
@@ -1142,7 +1143,6 @@ def doctest_MongoDataManager_complex_sub_objects():
       >>> dm.root['two'].sup.bar
       <Bar second bar>
 
-      >>> from pprint import pprint
       >>> pprint(list(conn[DBNAME]['mongopersist.tests.test_datamanager.Foo'].
       ...     find({'name': 'one'})))
       [{u'_id': ObjectId('...'),
@@ -1317,6 +1317,58 @@ def doctest_MongoDataManager_long():
       Traceback (most recent call last):
       ...
       OverflowError: MongoDB can only handle up to 8-byte ints
+    """
+
+
+def doctest_MongoDataManager_modify_sub_delete_doc():
+    """MongoDataManager: Deletion is not cancelled if sub-object is modified.
+
+    It must be ensured that the deletion of an object is not cancelled when a
+    sub-document object is modified (since it is registered with the data
+    manager.
+
+      >>> foo = Foo('foo')
+      >>> dm.root['foo'] = foo
+      >>> foo.bar = Bar('bar')
+
+      >>> dm.tpc_finish(None)
+      >>> conn[DBNAME]['mongopersist.tests.test_datamanager.Foo'].find().count()
+      1
+
+    Let's now modify bar and delete foo.
+
+      >>> foo = dm.root['foo']
+      >>> foo.bar.name = 'bar-new'
+      >>> dm.remove(foo)
+
+      >>> dm.tpc_finish(None)
+      >>> conn[DBNAME]['mongopersist.tests.test_datamanager.Foo'].find().count()
+      0
+    """
+
+def doctest_MongoDataManager_sub_doc_multi_flush():
+    """MongoDataManager: Sub-document object multi-flush
+
+    Make sure that multiple changes to the sub-object are registered, even if
+    they are flushed inbetween. (Note that flushing happens often due to
+    querying.)
+
+      >>> foo = Foo('foo')
+      >>> dm.root['foo'] = foo
+      >>> foo.bar = Bar('bar')
+
+      >>> dm.tpc_finish(None)
+
+    Let's now modify bar a few times with intermittend flushes.
+
+      >>> foo = dm.root['foo']
+      >>> foo.bar.name = 'bar-new'
+      >>> dm.flush()
+      >>> foo.bar.name = 'bar-newer'
+
+      >>> dm.tpc_finish(None)
+      >>> dm.root['foo'].bar.name
+      u'bar-newer'
     """
 
 

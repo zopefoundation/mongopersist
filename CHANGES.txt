@@ -35,6 +35,12 @@ CHANGES
   least 2 replications have been successfully been reported (w=3). It used to
   be set to w=1, which blocks until master confirms the write.
 
+- Bug: When a sub-document object is changed and then the main object is
+  removed, the removed object would re-appear, since the sub-document object
+  was still registered as changed and caused a write undoing the removal. The
+  issue was fixed by removing all registered sub-document objects as well from
+  the list during removal.
+
 - Bug: Objects where compared within the transaction manager for different
   reasons. This could create complicated scenarios (including data loss) when
   the ``__cmp__()`` method of the object was non-trivial. Now the result of

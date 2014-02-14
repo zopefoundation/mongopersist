@@ -324,9 +324,11 @@ class MongoDataManager(object):
             return
         self._removed_objects[id(obj)] = obj
         # Just in case the object was modified before removal, let's remove it
-        # from the modification list:
-        if obj._p_changed:
-            del self._registered_objects[id(obj)]
+        # from the modification list. Note that all sub-objects need to be
+        # deleted too!
+        for key, reg_obj in self._registered_objects.items():
+            if self._get_doc_object(reg_obj) is obj:
+                del self._registered_objects[key]
         # We are not doing anything fancy here, since the object might be
         # added again with some different state.
 
@@ -356,8 +358,9 @@ class MongoDataManager(object):
             self.transaction_manager.get().join(self)
             self._needs_to_join = False
 
-        # Do not bring back removed objects.
-        if id(obj) in self._removed_objects:
+        # Do not bring back removed objects. But only main the document
+        # objects can be removed, so check for that.
+        if id(self._get_doc_object(obj)) in self._removed_objects:
             return
 
         if obj is not None:
