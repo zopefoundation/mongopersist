@@ -893,6 +893,8 @@ def doctest_MongoDataManager_abort_conflict_detection():
         u'name': u'Eins'}
 
     """
+
+
 def doctest_MongoDataManager_abort_subobjects():
     r"""MongoDataManager: abort(): Correct restoring of complex objects
 
