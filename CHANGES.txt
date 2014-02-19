@@ -35,6 +35,9 @@ CHANGES
   least 2 replications have been successfully been reported (w=3). It used to
   be set to w=1, which blocks until master confirms the write.
 
+- Bug: When a persistent object which is a subobject is modified, on
+  abort restore the state of the parent object.
+
 - Bug: When a sub-document object is changed and then the main object is
   removed, the removed object would re-appear, since the sub-document object
   was still registered as changed and caused a write undoing the removal. The

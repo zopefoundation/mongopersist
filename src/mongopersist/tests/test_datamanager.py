@@ -938,6 +938,36 @@ def doctest_MongoDataManager_abort_subobjects():
 
     """
 
+
+def doctest_MongoDataManager_abort_persistent_subobjects():
+    """MongoDataManager: Abort subobjects that are persistent
+
+    Make sure that multiple changes to the sub-object are registered, even if
+    they are flushed inbetween. (Note that flushing happens often due to
+    querying.)
+
+      >>> foo = Foo('foo')
+      >>> dm.root['foo'] = foo
+      >>> foo.bar = Bar('bar')
+
+      >>> dm.tpc_finish(None)
+
+    Let's now modify bar and flush before aborting.
+
+      >>> foo = dm.root['foo']
+      >>> foo.bar.name = 'bar-modified'
+      >>> dm.flush()
+
+      >>> dm.abort(transaction.get())
+
+    The state was reset:
+
+      >>> dm.root['foo'].bar.name
+      u'bar'
+
+    """
+
+
 def doctest_MongoDataManager_tpc_begin():
     r"""MongoDataManager: tpc_begin()
 

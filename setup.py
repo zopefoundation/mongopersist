@@ -11,7 +11,7 @@ def read(*rnames):
 
 setup(
     name='mongopersist',
-    version='0.9.0.dev7',
+    version='0.9.0.dev8',
     author="Stephan Richter",
     author_email="stephan.richter@gmail.com",
     url='https://github.com/zopefoundation/mongopersist',

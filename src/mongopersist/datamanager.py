@@ -367,6 +367,7 @@ class MongoDataManager(object):
             if id(obj) not in self._registered_objects:
                 self._registered_objects[id(obj)] = obj
             if id(obj) not in self._modified_objects:
+                obj = self._get_doc_object(obj)
                 self._modified_objects[id(obj)] = obj
             self.conflict_handler.on_modified(obj)
 
