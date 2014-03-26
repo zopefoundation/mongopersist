@@ -236,7 +236,8 @@ class ObjectWriter(object):
         # added.
         if getattr(obj, '_p_mongo_sub_object', False):
             if obj._p_jar is None:
-                if pobj is not None and getattr(pobj, '_p_jar') is not None:
+                if pobj is not None and \
+                        getattr(pobj, '_p_jar', None) is not None:
                     obj._p_jar = pobj._p_jar
                 obj._p_mongo_doc_object = pobj
 
