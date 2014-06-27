@@ -278,8 +278,8 @@ class MongoDataManager(object):
             del self._registered_objects[id(obj)]
         return res
 
-    def load(self, dbref):
-        return self._reader.get_ghost(dbref)
+    def load(self, dbref, klass=None):
+        return self._reader.get_ghost(dbref, klass)
 
     def reset(self):
         root = self.root
