@@ -302,7 +302,7 @@ class MongoDataManager(object):
             raise ValueError('Object has already an OID.', obj)
         res = self._writer.store(obj, id=oid)
         obj._p_changed = False
-        self._object_cache[obj._p_oid] = obj
+        self._object_cache[hash(obj._p_oid)] = obj
         self._inserted_objects[id(obj)] = obj
         return res
 
