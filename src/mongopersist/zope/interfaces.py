@@ -114,3 +114,10 @@ class IMongoContainer(zope.interface.Interface):
         - in case _m_mapping_key is None: the object's OID
         - otherwise getattr(value, _m_mapping_key)
         """
+
+    def clear(self):
+        """Delete all items from this container.
+
+        Note, that this will not touch all items from the collection, but only
+        those, specified in _m_get_items_filter.
+        """

@@ -375,6 +375,10 @@ class MongoContainer(contained.Contained,
             return None
         return self._load_one(doc)
 
+    def clear(self):
+        for key in self.keys():
+            del self[key]
+
 
 class IdNamesMongoContainer(MongoContainer):
     """A container that uses the Mongo ObjectId as the name/key."""
