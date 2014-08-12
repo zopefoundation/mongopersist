@@ -316,6 +316,8 @@ class MongoDataManager(object):
         # Now we remove the object from Mongo.
         coll = self.get_collection_from_object(obj)
         coll.remove({'_id': obj._p_oid.id})
+        if hash(obj._p_oid) in self._object_cache:
+            del self._object_cache[hash(obj._p_oid)]
         # Edge case: The object was just added in this transaction.
         if id(obj) in self._inserted_objects:
             # but it still had to be removed from mongo, because insert
