@@ -382,9 +382,14 @@ class MongoDataManager(object):
             coll.remove({'_id': obj._p_oid.id})
         # 2. Re-insert any removed objects.
         for obj in self._removed_objects.values():
-            coll = self.get_collection_from_object(obj)
-            coll.insert(self._original_states[obj._p_oid])
-            del self._original_states[obj._p_oid]
+            db_ref = obj._p_oid
+            if db_ref in self._original_states:
+                coll = self.get_collection_from_object(obj)
+                coll.insert(self._original_states[db_ref])
+                del self._original_states[db_ref]
+            else:
+                LOG.warn('Original state not found while aborting: '
+                         '%r (removed) (%s)', obj, db_ref.id if db_ref else '')
         # 3. Reset any changed states.
         for obj in self._modified_objects.values():
             db_ref = obj._p_oid
