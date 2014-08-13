@@ -318,12 +318,13 @@ class MongoDataManager(object):
         coll.remove({'_id': obj._p_oid.id})
         if hash(obj._p_oid) in self._object_cache:
             del self._object_cache[hash(obj._p_oid)]
+
         # Edge case: The object was just added in this transaction.
         if id(obj) in self._inserted_objects:
             # but it still had to be removed from mongo, because insert
             # inserted it just before
             del self._inserted_objects[id(obj)]
-            return
+
         self._removed_objects[id(obj)] = obj
         # Just in case the object was modified before removal, let's remove it
         # from the modification list. Note that all sub-objects need to be

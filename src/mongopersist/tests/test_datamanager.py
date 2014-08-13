@@ -546,12 +546,13 @@ def doctest_MongoDataManager_remove():
       >>> dm.remove(foo3)
 
     In this case, the object is removed from Mongo and from the inserted object
-    list and never added to the removed object list.
+    list, but it is still added to removed object list, just in case we know if
+    it was removed.
 
       >>> dm._inserted_objects
       {}
-      >>> dm._removed_objects
-      {}
+      >>> dm._removed_objects.values()
+      [<Foo Foo 3>]
 
     """
 
@@ -570,8 +571,38 @@ def doctest_MongoDataManager_insert_remove():
 
       >>> dm._inserted_objects
       {}
-      >>> dm._removed_objects
+      >>> dm._removed_objects.values()
+      [<Foo foo>]
+
+      >>> tuple(dm._get_collection_from_object(foo).find())
+      ()
+
+      >>> dm.reset()
+
+    """
+
+def doctest_MongoDataManager_insert_remove_modify():
+    r"""MongoDataManager: insert and remove in the same transaction
+
+    Let's insert an object:
+
+      >>> foo = Foo('foo')
+      >>> foo_ref = dm.insert(foo)
+
+    And remove it ASAP:
+
+      >>> dm.remove(foo)
+
+      >>> dm._inserted_objects
       {}
+      >>> dm._removed_objects.values()
+      [<Foo foo>]
+
+      >>> foo.name = 'bar'
+      >>> dm._removed_objects.values()
+      [<Foo bar>]
+      >>> dm._registered_objects.values()
+      []
 
       >>> tuple(dm._get_collection_from_object(foo).find())
       ()
