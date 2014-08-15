@@ -714,6 +714,75 @@ def doctest_MongoContainer_find():
       <Person Stephan>
     """
 
+def doctest_MongoContainer_cache_complete():
+    """MongoContainer: _cache_complete
+
+    Let's add a bunch of objects:
+
+      >>> transaction.commit()
+      >>> ppl = dm.root['people'] = container.MongoContainer('person')
+      >>> ppl[u'stephan'] = Person(u'Stephan')
+      >>> ppl[u'roy'] = Person(u'Roy')
+      >>> ppl[u'roger'] = Person(u'Roger')
+      >>> ppl[u'adam'] = Person(u'Adam')
+      >>> ppl[u'albertas'] = Person(u'Albertas')
+      >>> ppl[u'russ'] = Person(u'Russ')
+
+    Clean the cache on the transaction:
+
+      >>> txn = transaction.manager.get()
+      >>> if hasattr(txn, '_v_mongo_container_cache'):
+      ...     delattr(txn, '_v_mongo_container_cache')
+
+    The cache is not complete:
+
+      >>> ppl._cache_complete
+      False
+
+    We have 6 objects
+
+      >>> len(ppl.items())
+      6
+
+    The cache is complete if it's on
+
+      >>> ppl._cache_complete == container.USE_CONTAINER_CACHE
+      True
+
+    Del 1
+
+      >>> del ppl['adam']
+
+    5 remain
+
+      >>> len(ppl.items())
+      5
+
+    Add 1
+
+      >>> ppl['joe'] = Person('Joe')
+
+    Back to 6
+
+      >>> len(ppl.items())
+      6
+
+    The cache is still complete if it's on
+
+      >>> ppl._cache_complete == container.USE_CONTAINER_CACHE
+      True
+
+    Clearing the container
+
+      >>> ppl.clear()
+      >>> len(ppl.items())
+      0
+
+      >>> ppl._cache_complete == container.USE_CONTAINER_CACHE
+      True
+
+    """
+
 def doctest_IdNamesMongoContainer_basic():
     """IdNamesMongoContainer: basic
 
