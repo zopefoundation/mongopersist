@@ -54,8 +54,9 @@ class ConflictError(transaction.interfaces.TransientError):
 
     def __str__(self):
         extras = [
-            'oid %s' % self.object._p_oid,
-            'class %s' % self.object.__class__.__name__,
+            'oid %s' % self.object._p_oid if self.object else '',
+            'class %s' % self.object.__class__.__name__ if self.object
+            else '',
             'orig serial %s' % self.orig_serial,
             'cur serial %s' % self.cur_serial,
             'new serial %s' % self.new_serial]
