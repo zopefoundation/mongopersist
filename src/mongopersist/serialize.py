@@ -497,13 +497,14 @@ class ObjectReader(object):
             sub_obj = factory(*factory_args)
         if len(state):
             sub_obj_state = self.get_object(state, obj)
-            if isinstance(sub_obj, persistent.Persistent):
+            if hasattr(sub_obj, '__setstate__'):
                 sub_obj.__setstate__(sub_obj_state)
+            else:
+                sub_obj.__dict__.update(sub_obj_state)
+            if isinstance(sub_obj, persistent.Persistent):
                 # This is a persistent sub-object -- mark it as such. Otherwise
                 # we risk to store this object in its own collection next time.
                 sub_obj._p_mongo_sub_object = True
-            else:
-                sub_obj.__dict__.update(sub_obj_state)
         if getattr(sub_obj, '_p_mongo_sub_object', False):
             sub_obj._p_mongo_doc_object = obj
             sub_obj._p_jar = self._jar
