@@ -66,6 +66,12 @@ class PersistentDict(persistent.dict.PersistentDict):
         # slower. So let's not do that.
         return self.data[key]
 
+    def __eq__(self, other):
+        return self.data == other
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 
 class PersistentList(persistent.list.PersistentList):
     _p_mongo_sub_object = True

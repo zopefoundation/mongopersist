@@ -1039,6 +1039,32 @@ def doctest_deserialize_persistent_references():
     """
 
 
+def doctest_PersistentDict_equality():
+    """Test basic functions if PersistentDicts
+
+      >>> import datetime
+      >>> obj1 = serialize.PersistentDict({'key':'value'})
+      >>> obj2 = serialize.PersistentDict({'key':'value'})
+      >>> obj3 = serialize.PersistentDict({'key':None})
+      >>> obj4 = serialize.PersistentDict({'key':datetime.datetime.now()})
+
+      >>> obj1 == obj1 and obj2 == obj2 and obj3 == obj3 and obj4 == obj4
+      True
+
+      >>> obj1 == obj2
+      True
+
+      >>> obj1 == obj3
+      False
+
+      >>> obj1 == obj4
+      False
+
+      >>> obj3 == obj4
+      False
+    """
+
+
 def test_suite():
     return doctest.DocTestSuite(
         setUp=testing.setUp, tearDown=testing.tearDown,
