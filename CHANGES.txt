@@ -35,6 +35,9 @@ CHANGES
   least 2 replications have been successfully been reported (w=3). It used to
   be set to w=1, which blocks until master confirms the write.
 
+- Bug: PersistentDict ``__eq__()`` and ``__neq__()`` methods do not rely on
+  ``__cmp__()`` anymore.
+
 - Bug: When a persistent object which is a subobject is modified, on
   abort restore the state of the parent object.
 
