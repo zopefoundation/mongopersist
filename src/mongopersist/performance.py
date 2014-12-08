@@ -100,6 +100,33 @@ class PerformanceBase(object):
         transaction.commit()
         self.printResult('Slow Read', t1, t2, peopleCnt)
 
+    def read_list(self, people, peopleCnt):
+        # Profile fast read (values)
+        transaction.begin()
+        t1 = time.time()
+        if PROFILE:
+            cProfile.runctx(
+                '[p for p in list(people)]', globals(), locals(),
+                filename=self.profile_output+'_read_list')
+        else:
+            [p for p in list(people)]
+        t2 = time.time()
+        transaction.commit()
+        self.printResult('Read (list)', t1, t2, peopleCnt)
+
+    def read_list_values(self, people, peopleCnt):
+        # Profile fast read (values)
+        transaction.begin()
+        t1 = time.time()
+        if PROFILE:
+            cProfile.runctx(
+                '[p for p in list(people.values())]', globals(), locals(),
+                filename=self.profile_output+'_read_list_values')
+        else:
+            [p for p in list(people.values())]
+        t2 = time.time()
+        transaction.commit()
+        self.printResult('Read (list.values)', t1, t2, peopleCnt)
 
     def fast_read_values(self, people, peopleCnt):
         # Profile fast read (values)
@@ -201,6 +228,8 @@ class PerformanceBase(object):
         peopleCnt = len(people)
 
         self.slow_read(people, peopleCnt)
+        self.read_list(people, peopleCnt)
+        self.read_list_values(people, peopleCnt)
         self.fast_read_values(people, peopleCnt)
         self.fast_read(people, peopleCnt)
         self.object_caching(people, peopleCnt)
