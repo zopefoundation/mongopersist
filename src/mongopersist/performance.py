@@ -36,6 +36,9 @@ import ZODB.FileStorage
 
 MULTIPLE_CLASSES = True
 
+PROFILE = False
+PROFILE_OUTPUT = '/tmp/cprofile'
+
 
 class People(container.AllItemsMongoContainer):
     _p_mongo_collection = 'people'
@@ -69,6 +72,7 @@ class Person2(Person):
 class PerformanceBase(object):
     personKlass = None
     person2Klass = None
+    profile_output = None
 
     def printResult(self, text, t1, t2, count=None):
         dur = t2-t1
@@ -86,20 +90,27 @@ class PerformanceBase(object):
         # Profile slow read
         transaction.begin()
         t1 = time.time()
-        [people[name].name for name in people]
-        #cProfile.runctx(
-        #    '[people[name].name for name in people]', globals(), locals())
+        if PROFILE:
+            cProfile.runctx(
+                '[people[name].name for name in people]', globals(), locals(),
+                filename=self.profile_output+'_slow_read')
+        else:
+            [people[name].name for name in people]
         t2 = time.time()
         transaction.commit()
         self.printResult('Slow Read', t1, t2, peopleCnt)
+
 
     def fast_read_values(self, people, peopleCnt):
         # Profile fast read (values)
         transaction.begin()
         t1 = time.time()
-        [person.name for person in people.values()]
-        #cProfile.runctx(
-        #    '[person.name for person in people.find()]', globals(), locals())
+        if PROFILE:
+            cProfile.runctx(
+                '[person.name for person in people.values()]', globals(), locals(),
+                filename=self.profile_output+'_fast_read_values')
+        else:
+            [person.name for person in people.values()]
         t2 = time.time()
         transaction.commit()
         self.printResult('Fast Read (values)', t1, t2, peopleCnt)
@@ -108,9 +119,12 @@ class PerformanceBase(object):
         # Profile fast read
         transaction.begin()
         t1 = time.time()
-        [person.name for person in people.find()]
-        #cProfile.runctx(
-        #    '[person.name for person in people.find()]', globals(), locals())
+        if PROFILE:
+            cProfile.runctx(
+                '[person.name for person in people.find()]', globals(), locals(),
+                filename=self.profile_output+'_fast_read')
+        else:
+            [person.name for person in people.find()]
         t2 = time.time()
         transaction.commit()
         self.printResult('Fast Read (find)', t1, t2, peopleCnt)
@@ -158,9 +172,12 @@ class PerformanceBase(object):
                 person.name += 'X'
                 person.age += 1
             transaction.commit()
-        modify()
-        #cProfile.runctx(
-        #    'modify()', globals(), locals())
+        if PROFILE:
+            cProfile.runctx(
+                'modify()', globals(), locals(),
+                filename=self.profile_output+'_modify')
+        else:
+            modify()
         t2 = time.time()
         self.printResult('Modification', t1, t2, peopleCnt)
 
@@ -168,7 +185,12 @@ class PerformanceBase(object):
         # Profile deletion
         t1 = time.time()
         for name in people.keys():
-            del people[name]
+            if PROFILE:
+                cProfile.runctx(
+                    'del people[name]', globals(), locals(),
+                    filename=self.profile_output+'_delete')
+            else:
+                del people[name]
         transaction.commit()
         t2 = time.time()
         self.printResult('Deletion', t1, t2, peopleCnt)
@@ -193,6 +215,8 @@ class PerformanceBase(object):
 class PerformanceMongo(PerformanceBase):
     personKlass = Person
     person2Klass = Person2
+
+    profile_output = PROFILE_OUTPUT + '_mongo_'
 
     def getPeople(self, options):
         conn = pymongo.Connection('localhost', 27017, tz_aware=False)
@@ -248,6 +272,8 @@ class Person2Z(Person):
 class PerformanceZODB(PerformanceBase):
     personKlass = PersonZ
     person2Klass = Person2Z
+
+    profile_output = PROFILE_OUTPUT + '_zodb_'
 
     def getPeople(self, options):
         folder = tempfile.gettempdir()
